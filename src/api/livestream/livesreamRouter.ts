@@ -5,7 +5,6 @@ import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 // @ts-ignore
 import proxy from "@warren-bank/hls-proxy/hls-proxy/proxy";
 import express, { type Router } from "express";
-import ffmpeg from "fluent-ffmpeg";
 import YTDlpWrap from "yt-dlp-wrap";
 import { z } from "zod";
 
@@ -58,7 +57,7 @@ async function getM3u8() {
 livesreamRouter.get("/proxy/*", middleware.request);
 
 livesreamRouter.get("/output.m3u8", async (req, res) => {
-  const sourceUrl = `${env.isProduction ? "https" : "http"}://${req.get("host")}`;
+  const sourceUrl = `http://${req.get("host")}`;
   const url = await readFile("url", "utf8").catch(() => "");
   try {
     if (url) {
