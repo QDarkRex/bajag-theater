@@ -41,4 +41,5 @@ export const env = cleanEnv(process.env, {
   HW_ACCEL: str({ choices: ["NVENC", "VAAPI"] }),
   FFMPEG_PATH: str(),
   DOWNLOAD_DIR: str(),
+  PROXY_URL: str(),
 });

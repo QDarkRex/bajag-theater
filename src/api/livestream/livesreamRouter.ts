@@ -57,12 +57,11 @@ async function getM3u8() {
 livesreamRouter.get("/proxy/*", middleware.request);
 
 livesreamRouter.get("/output.m3u8", async (req, res) => {
-  const sourceUrl = `http://${req.get("host")}`;
   const url = await readFile("url", "utf8").catch(() => "");
   try {
     if (url) {
       logger.info(`URL already fetched (${url}). Skipping`);
-      const proxy_url = `${sourceUrl}/livestream/proxy`;
+      const proxy_url = `${env.PROXY_URL}`;
       const video_url = await getM3u8();
       const file_extension = ".m3u8";
 
