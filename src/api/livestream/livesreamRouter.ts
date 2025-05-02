@@ -9,7 +9,7 @@ import YTDlpWrap from "yt-dlp-wrap";
 import { z } from "zod";
 
 const middleware = proxy({
-  is_secure: false,
+  is_secure: true,
   host: null,
   copy_req_headers: false,
   req_headers: null,
