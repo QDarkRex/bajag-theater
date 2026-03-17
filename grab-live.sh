@@ -2,7 +2,7 @@
 
 # Target Datarhei Restreamer HLS/MPEG-TS stream URL
 # Replace 'stream.m3u8' with the actual process/stream name if different
-RESTREAMER_URL="http://192.168.30.10:6010/memfs/stream.m3u8"
+RESTREAMER_URL="http://192.168.30.10:6010/memfs/3b4c54e4-4aba-4b7d-ae98-a9ccef1cf262.m3u8"
 
 echo "Pulling stream from Datarhei Restreamer: $RESTREAMER_URL"
 
