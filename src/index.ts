@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import YTDlpWrap from "yt-dlp-wrap";
 
 import { parseNetscapeCookies, transformInput } from "@/common/utils/dataMapping";
 import { getFormattedDate } from "@/common/utils/date";
@@ -40,7 +39,7 @@ async function ensureLatestYTDlp() {
   if (localVersion.trim() !== latestVersion.trim()) {
     logger.info(`Updating yt-dlp: Local version (${localVersion}) != Latest version (${latestVersion})`);
     try {
-      await YTDlpWrap.downloadFromGithub();
+//       await YTDlpWrap.downloadFromGithub();
       logger.info("yt-dlp has been updated to the latest version.");
     } catch (error) {
       logger.error("Error updating yt-dlp:", error);
@@ -52,7 +51,7 @@ async function ensureLatestYTDlp() {
 
 async function getLocalYTDlpVersion() {
   const ytdlPath = path.resolve(".");
-  const ytDlpWrap = new YTDlpWrap(`${ytdlPath}/yt-dlp`);
+//   const ytDlpWrap = new YTDlpWrap(`${ytdlPath}/yt-dlp`);
   const version = await ytDlpWrap.execPromise(["--version"]);
   return version;
 }
@@ -139,13 +138,13 @@ setInterval(async () => {
   const output = `video/${date}.ts`;
   const channel = env.isProd ? "https://www.youtube.com/@JKT48TV" : "https://www.youtube.com/@LofiGirl";
   const ytdlPath = path.resolve(".");
-  const ytDlpWrap = new YTDlpWrap(`${ytdlPath}/yt-dlp`);
+//   const ytDlpWrap = new YTDlpWrap(`${ytdlPath}/yt-dlp`);
 
   const isDownloading = (await readFile("isDownloading", "utf8").catch(() => "")) === "true";
   let url = await readFile("url", "utf8").catch(() => "");
 
   await ensureLatestYTDlp();
-  const checkLivestream = async (url: string, cookiesPath: string, ytDlpWrap: YTDlpWrap): Promise<boolean> => {
+//   const checkLivestream = async (url: string, cookiesPath: string, ytDlpWrap: YTDlpWrap): Promise<boolean> => {
     if (!url) {
       logger.error("URL is missing. Skipping livestream status check.");
       return false;

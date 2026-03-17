@@ -5,7 +5,6 @@ import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 // @ts-ignore
 import proxy from "@warren-bank/hls-proxy/hls-proxy/proxy";
 import express, { type Router } from "express";
-import YTDlpWrap from "yt-dlp-wrap";
 import { z } from "zod";
 
 const middleware = proxy({
@@ -48,7 +47,7 @@ async function getM3u8() {
   const url = await readFile("url", "utf8").catch(() => "");
   const cookiesPath = path.resolve("cookies/cookies");
   const ytdlpath = path.resolve(".");
-  const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
+//   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
   const m3u8 = await ytDlpWrap.execPromise([url, "-g", "--cookies", cookiesPath]);
 
   return m3u8;
@@ -85,7 +84,7 @@ livesreamRouter.get("/output.m3u8", async (req, res) => {
 livesreamRouter.get("/raw", async (_req, res) => {
   const cookiesPath = path.resolve("cookies/cookies");
   const ytdlpath = path.resolve(".");
-  const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
+//   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
   const url = await readFile("url", "utf8").catch(() => "");
   if (!url) {
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No URL Found!");
@@ -101,7 +100,7 @@ livesreamRouter.get("/index.m3u8", async (_req, res) => {
   const url = await readFile("url", "utf8").catch(() => "");
   const cookiesPath = path.resolve("cookies/cookies");
   const ytdlpath = path.resolve(".");
-  const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
+//   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
   if (!url) {
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No URL Found!");
     return handleServiceResponse(serviceResponse, res);
