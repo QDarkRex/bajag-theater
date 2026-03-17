@@ -47,8 +47,8 @@ async function getM3u8() {
   const url = await readFile("url", "utf8").catch(() => "");
   const cookiesPath = path.resolve("cookies/cookies");
   const ytdlpath = path.resolve(".");
-//   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
-  const m3u8 = await ytDlpWrap.execPromise([url, "-g", "--cookies", cookiesPath]);
+// //   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
+//   const m3u8 = await ytDlpWrap.execPromise([url, "-g", "--cookies", cookiesPath]);
 
   return m3u8;
 }
@@ -84,14 +84,14 @@ livesreamRouter.get("/output.m3u8", async (req, res) => {
 livesreamRouter.get("/raw", async (_req, res) => {
   const cookiesPath = path.resolve("cookies/cookies");
   const ytdlpath = path.resolve(".");
-//   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
+// //   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
   const url = await readFile("url", "utf8").catch(() => "");
   if (!url) {
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No URL Found!");
     return handleServiceResponse(serviceResponse, res);
   }
 
-  const readableStream = ytDlpWrap.execStream([url, "--cookies", cookiesPath, "--ffmpeg-location", env.FFMPEG_PATH]);
+//   const readableStream = ytDlpWrap.execStream([url, "--cookies", cookiesPath, "--ffmpeg-location", env.FFMPEG_PATH]);
 
   readableStream.pipe(res);
 });
@@ -100,7 +100,7 @@ livesreamRouter.get("/index.m3u8", async (_req, res) => {
   const url = await readFile("url", "utf8").catch(() => "");
   const cookiesPath = path.resolve("cookies/cookies");
   const ytdlpath = path.resolve(".");
-//   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
+// //   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
   if (!url) {
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No URL Found!");
     return handleServiceResponse(serviceResponse, res);
@@ -108,6 +108,6 @@ livesreamRouter.get("/index.m3u8", async (_req, res) => {
 
   if (url) {
     res.setHeader("Content-Type", "video/mp4");
-    const readableStream = ytDlpWrap.execStream([url, "--cookies", cookiesPath, "--ffmpeg-location", env.FFMPEG_PATH]);
+//     const readableStream = ytDlpWrap.execStream([url, "--cookies", cookiesPath, "--ffmpeg-location", env.FFMPEG_PATH]);
   }
 });

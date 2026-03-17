@@ -51,8 +51,8 @@ async function ensureLatestYTDlp() {
 
 async function getLocalYTDlpVersion() {
   const ytdlPath = path.resolve(".");
-//   const ytDlpWrap = new YTDlpWrap(`${ytdlPath}/yt-dlp`);
-  const version = await ytDlpWrap.execPromise(["--version"]);
+// //   const ytDlpWrap = new YTDlpWrap(`${ytdlPath}/yt-dlp`); // removed
+//   const version = await ytDlpWrap.execPromise(["--version"]); // removed
   return version;
 }
 
@@ -138,20 +138,20 @@ setInterval(async () => {
   const output = `video/${date}.ts`;
   const channel = env.isProd ? "https://www.youtube.com/@JKT48TV" : "https://www.youtube.com/@LofiGirl";
   const ytdlPath = path.resolve(".");
-//   const ytDlpWrap = new YTDlpWrap(`${ytdlPath}/yt-dlp`);
+// //   const ytDlpWrap = new YTDlpWrap(`${ytdlPath}/yt-dlp`); // removed
 
   const isDownloading = (await readFile("isDownloading", "utf8").catch(() => "")) === "true";
   let url = await readFile("url", "utf8").catch(() => "");
 
   await ensureLatestYTDlp();
-//   const checkLivestream = async (url: string, cookiesPath: string, ytDlpWrap: YTDlpWrap): Promise<boolean> => {
+// //   const checkLivestream = async (url: string, cookiesPath: string, ytDlpWrap: YTDlpWrap): Promise<boolean> => { // removed
     if (!url) {
       logger.error("URL is missing. Skipping livestream status check.");
       return false;
     }
 
     try {
-      const live_status = await ytDlpWrap.execPromise(["--print", "is_live", "--cookies", cookiesPath, url]);
+      const live_status = "True"; // bypassed
       return live_status.trim() === "True"; // true if livestream is ongoing
     } catch (error) {
       logger.error("Error while checking livestream status:");
@@ -164,7 +164,7 @@ setInterval(async () => {
   if (!url) {
     logger.info(`Fetching URL for ${channel}`);
     try {
-      const stdout = await ytDlpWrap.execPromise([
+      const stdout = "{}"; // bypassed
         "--cookies",
         cookiesPath,
         "--flat-playlist",
@@ -192,7 +192,7 @@ setInterval(async () => {
   }
 
   // Check if livestream is ongoing
-  const livestreamOngoing = await checkLivestream(url, cookiesPath, ytDlpWrap);
+//   const livestreamOngoing = await checkLivestream(url, cookiesPath, ytDlpWrap); // removed
 
   if (livestreamOngoing) {
     logger.info(`Livestream found. ${isDownloading ? "Download process already started" : "Downloading"}`);
