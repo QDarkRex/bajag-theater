@@ -1,34 +1,13 @@
 # !/bin/bash
 
-# Check if the COOKIES environment variable is set and not empty
-if [ -n "$COOKIES" ]; then
-  cookies_file="$COOKIES"
-else
-  # If COOKIES is not set, check for the command-line argument
-  if [ "$#" -ne 1 ]; then
-    echo "Usage: $0 <cookies_file> or set the COOKIES environment variable."
-    exit 1
-  fi
-  cookies_file="$1"
-fi
+# Target Datarhei Restreamer HLS/MPEG-TS stream URL
+# Replace 'stream.m3u8' with the actual process/stream name if different
+RESTREAMER_URL="http://192.168.30.10:6010/memfs/stream.m3u8"
 
-# Check if the specified file exists
-if [ ! -f "$cookies_file" ]; then
-  echo "Error: The file '$cookies_file' does not exist."
-  exit 1
-fi
+echo "Pulling stream from Datarhei Restreamer: $RESTREAMER_URL"
 
-# Get the JSON output of the playlist
-stdout=$(yt-dlp --cookies $cookies_file --flat-playlist --match-filter "is_live" https://www.youtube.com/@JKT48TV --print-json)
+# Create video directory if it doesn't exist
+mkdir -p video
 
-# Transform and filter the live streams
-yt_url=$(echo "$stdout" | jq -r 'select(.is_live == true) | .url' | head -n 1)
-
-# Check if a URL was found
-if [ -z "$yt_url" ]; then
-  echo "No live streams found."
-  exit 1
-fi
-
-URL="$yt_url"
-yt-dlp --live-from-start --cookies $cookies_file --merge-output-format mkv $URL -o video/output.mkv
+# Use ffmpeg directly to capture the local stream instead of yt-dlp
+ffmpeg -i "$RESTREAMER_URL" -c copy -bsf:a aac_adtstoasc video/output.mkv
