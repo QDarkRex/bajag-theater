@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { bool, cleanEnv, host, makeValidator, num, port, str, testOnly } from "envalid";
+import { bool, cleanEnv, host, makeValidator, num, port, str } from "envalid";
 
 dotenv.config();
 
@@ -30,16 +30,16 @@ const isValidPath = makeValidator((path) => {
 });
 
 export const env = cleanEnv(process.env, {
-  NODE_ENV: str({ devDefault: testOnly("test"), choices: ["development", "production", "test"] }),
-  HOST: host({ devDefault: testOnly("localhost") }),
-  PORT: port({ devDefault: testOnly(3000) }),
-  CORS_ORIGIN: str({ devDefault: testOnly("http://localhost:3000") }),
-  COMMON_RATE_LIMIT_MAX_REQUESTS: num({ devDefault: testOnly(1000) }),
-  COMMON_RATE_LIMIT_WINDOW_MS: num({ devDefault: testOnly(1000) }),
-  COOKIES: isValidPath(),
-  REPLAY_DIR: str(),
-  HW_ACCEL: str({ choices: ["NVENC", "VAAPI"] }),
-  FFMPEG_PATH: str(),
-  DOWNLOAD_DIR: str(),
-  PROXY_URL: str(),
+  NODE_ENV: str({ default: "development", choices: ["development", "production", "test"] }),
+  HOST: host({ default: "localhost" }),
+  PORT: port({ default: 3000 }),
+  CORS_ORIGIN: str({ default: "http://localhost:3000" }),
+  COMMON_RATE_LIMIT_MAX_REQUESTS: num({ default: 1000 }),
+  COMMON_RATE_LIMIT_WINDOW_MS: num({ default: 1000 }),
+  COOKIES: isValidPath({ default: "cookies/cookies" }),
+  REPLAY_DIR: str({ default: "replay" }),
+  HW_ACCEL: str({ default: "VAAPI", choices: ["NVENC", "VAAPI"] }),
+  FFMPEG_PATH: str({ default: "/usr/bin/ffmpeg" }),
+  DOWNLOAD_DIR: str({ default: "download" }),
+  PROXY_URL: str({ default: "http://localhost:3000/livestream/proxy" }),
 });

@@ -5,12 +5,14 @@ import path from "node:path";
 import { parseNetscapeCookies, transformInput } from "@/common/utils/dataMapping";
 import { getFormattedDate } from "@/common/utils/date";
 import { env } from "@/common/utils/envConfig";
+import { downloadYtDlp, runYtDlp } from "@/common/utils/ytDlp";
 import { app, logger } from "@/server";
 
 const { NODE_ENV, HOST, PORT } = env;
 const server = app.listen(env.PORT, () => {
   logger.info(`Server (${NODE_ENV}) running on port http://${HOST}:${PORT}`);
 });
+let ytDlpUpdatePromise: Promise<void> | null = null;
 
 const onCloseSignal = () => {
   logger.info("sigint received, shutting down");
@@ -28,7 +30,20 @@ async function getLatestYTDlpVersion() {
 }
 
 async function ensureLatestYTDlp() {
-  const localVersion = await getLocalYTDlpVersion();
+  if (ytDlpUpdatePromise) {
+    await ytDlpUpdatePromise;
+    return;
+  }
+
+  ytDlpUpdatePromise = doEnsureLatestYTDlp().finally(() => {
+    ytDlpUpdatePromise = null;
+  });
+
+  await ytDlpUpdatePromise;
+}
+
+async function doEnsureLatestYTDlp() {
+  let localVersion = await getLocalYTDlpVersion();
   const latestVersion = await getLatestYTDlpVersion();
 
   if (!latestVersion) {
@@ -36,11 +51,12 @@ async function ensureLatestYTDlp() {
     return;
   }
 
-  if (localVersion.trim() !== latestVersion.trim()) {
-    logger.info(`Updating yt-dlp: Local version (${localVersion}) != Latest version (${latestVersion})`);
+  if (!localVersion || localVersion.trim() !== latestVersion.trim()) {
+    logger.info(`Updating yt-dlp: Local version (${localVersion || "missing"}) != Latest version (${latestVersion})`);
     try {
-//       await YTDlpWrap.downloadFromGithub();
-      logger.info("yt-dlp has been updated to the latest version.");
+      const binaryPath = await downloadYtDlp();
+      localVersion = await getLocalYTDlpVersion();
+      logger.info(`yt-dlp has been updated at ${binaryPath} (${localVersion.trim()}).`);
     } catch (error) {
       logger.error("Error updating yt-dlp:", error);
     }
@@ -50,10 +66,10 @@ async function ensureLatestYTDlp() {
 }
 
 async function getLocalYTDlpVersion() {
-  const ytdlPath = path.resolve(".");
-// //   const ytDlpWrap = new YTDlpWrap(`${ytdlPath}/yt-dlp`); // removed
-//   const version = await ytDlpWrap.execPromise(["--version"]); // removed
-  return version;
+  return runYtDlp(["--version"]).catch((error) => {
+    logger.warn({ error }, "Unable to read local yt-dlp version");
+    return "";
+  });
 }
 
 async function downloadStream(
@@ -132,27 +148,25 @@ async function downloadStream(
   }
 }
 
-setInterval(async () => {
+async function checkAndDownloadLivestream() {
   const cookiesPath = path.resolve("cookies/cookies");
   const date = getFormattedDate();
   const output = `video/${date}.ts`;
   const channel = env.isProd ? "https://www.youtube.com/@JKT48TV" : "https://www.youtube.com/@LofiGirl";
-  const ytdlPath = path.resolve(".");
-// //   const ytDlpWrap = new YTDlpWrap(`${ytdlPath}/yt-dlp`); // removed
 
   const isDownloading = (await readFile("isDownloading", "utf8").catch(() => "")) === "true";
   let url = await readFile("url", "utf8").catch(() => "");
 
   await ensureLatestYTDlp();
-// //   const checkLivestream = async (url: string, cookiesPath: string, ytDlpWrap: YTDlpWrap): Promise<boolean> => { // removed
+  const checkLivestream = async (streamUrl: string): Promise<boolean> => {
     if (!url) {
       logger.error("URL is missing. Skipping livestream status check.");
       return false;
     }
 
     try {
-      const live_status = "True"; // bypassed
-      return live_status.trim() === "True"; // true if livestream is ongoing
+      const liveStatus = await runYtDlp([streamUrl, "--cookies", cookiesPath, "--print", "live_status"]);
+      return ["is_live", "true"].includes(liveStatus.trim().toLowerCase());
     } catch (error) {
       logger.error("Error while checking livestream status:");
       logger.error(error);
@@ -164,7 +178,7 @@ setInterval(async () => {
   if (!url) {
     logger.info(`Fetching URL for ${channel}`);
     try {
-      const stdout = "{}"; // bypassed
+      const stdout = await runYtDlp([
         "--cookies",
         cookiesPath,
         "--flat-playlist",
@@ -192,17 +206,29 @@ setInterval(async () => {
   }
 
   // Check if livestream is ongoing
-//   const livestreamOngoing = await checkLivestream(url, cookiesPath, ytDlpWrap); // removed
+  const livestreamOngoing = await checkLivestream(url);
 
   if (livestreamOngoing) {
     logger.info(`Livestream found. ${isDownloading ? "Download process already started" : "Downloading"}`);
 
     // Start download if not already downloading
     if (!isDownloading) {
-      // await downloadStream(url, "best", cookiesPath, output, 20);
+      await downloadStream(url, "best", cookiesPath, output, 20);
     }
   }
+}
+
+setInterval(() => {
+  checkAndDownloadLivestream().catch((error) => {
+    logger.error("Livestream watcher failed:");
+    logger.error(error);
+  });
 }, 60 * 1000);
+
+checkAndDownloadLivestream().catch((error) => {
+  logger.error("Initial livestream check failed:");
+  logger.error(error);
+});
 
 process.on("SIGINT", onCloseSignal);
 process.on("SIGTERM", onCloseSignal);

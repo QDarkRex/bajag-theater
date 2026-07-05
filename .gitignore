@@ -12,6 +12,7 @@ node_modules
 dist
 build
 dist-ssr
+.cache
 *.local
 .env
 cookies

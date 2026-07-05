@@ -2,9 +2,9 @@ name: Test
 
 on:
   push:
-    branches: ["master"]
+    branches: ["main"]
   pull_request:
-    branches: ["master"]
+    branches: ["main"]
 
 jobs:
   build:
@@ -13,14 +13,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use the latest stable Node.js
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
-          cache: "npm"
+          cache: "pnpm"
 
-      - name: Install Dependencies
-        run: npm ci
+      - name: Enable pnpm
+        run: corepack enable
 
-      - name: Run Test
-        run: npm run test
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test

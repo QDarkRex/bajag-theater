@@ -1,5 +1,8 @@
+import { readFile } from "node:fs/promises";
 import axios from "axios";
 import * as cheerio from "cheerio";
+
+const REQUEST_TIMEOUT_MS = 10000;
 
 interface EventForShow {
   badgeUrl: string;
@@ -139,7 +142,11 @@ export const parseEvents = (html: string) => {
 export const getSchedule = async () => {
   const url = "https://jkt48.com/theater/schedule";
   try {
-    const result = await axios.get<string>(url);
+    if (process.env.NODE_ENV === "test") {
+      return await readFile("public/calendar.html", "utf8");
+    }
+
+    const result = await axios.get<string>(url, { timeout: REQUEST_TIMEOUT_MS });
     return result.data;
   } catch (error) {
     return null;
@@ -150,7 +157,7 @@ export const fetchEvents = async () => {
   const url = "https://jkt48.com/calendar/list?lang=id";
 
   try {
-    const response = await axios.get<string>(url);
+    const response = await axios.get<string>(url, { timeout: REQUEST_TIMEOUT_MS });
     return response.data;
   } catch (error) {
     return null;
@@ -161,7 +168,7 @@ export const fetchScheduleSectionData = async () => {
   const url = "https://jkt48.com/";
 
   try {
-    const response = await axios.get<string>(url);
+    const response = await axios.get<string>(url, { timeout: REQUEST_TIMEOUT_MS });
     return response.data;
   } catch (error) {
     return null;

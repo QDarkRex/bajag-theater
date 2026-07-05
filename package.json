@@ -5,11 +5,12 @@
   "author": "Darth Vader",
   "repository": "vader-pepe/bajag-theater",
   "license": "MIT",
+  "packageManager": "pnpm@8.15.9",
   "main": "index.ts",
   "private": true,
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/index.ts | pino-pretty",
-    "build": "tsup --loader '.html=text'",
+    "build": "tsup --loader .html=text",
     "start": "node dist/index.js",
     "clean": "rimraf dist coverage",
     "lint": "biome check src/",
@@ -63,16 +64,10 @@
     "vitest": "^2.0.0"
   },
   "lint-staged": {
-    "*.{js,ts,cjs,mjs,d.cts,d.mts,json,jsonc}": [
-      "biome check --apply --no-errors-on-unmatched"
-    ]
+    "*.{js,ts,cjs,mjs,d.cts,d.mts,json,jsonc}": ["biome check --apply --no-errors-on-unmatched"]
   },
   "tsup": {
-    "entry": [
-      "src",
-      "!src/**/__tests__/**",
-      "!src/**/*.test.*"
-    ],
+    "entry": ["src", "!src/**/__tests__/**", "!src/**/*.test.*"],
     "splitting": false,
     "sourcemap": true,
     "clean": true

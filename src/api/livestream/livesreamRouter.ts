@@ -31,6 +31,7 @@ const middleware = proxy({
 import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
+import { runYtDlp, spawnYtDlp } from "@/common/utils/ytDlp";
 import { logger } from "@/server";
 
 export const livestreamRegistry = new OpenAPIRegistry();
@@ -46,11 +47,7 @@ livestreamRegistry.registerPath({
 async function getM3u8() {
   const url = await readFile("url", "utf8").catch(() => "");
   const cookiesPath = path.resolve("cookies/cookies");
-  const ytdlpath = path.resolve(".");
-// //   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
-//   const m3u8 = await ytDlpWrap.execPromise([url, "-g", "--cookies", cookiesPath]);
-
-  return m3u8;
+  return runYtDlp([url, "-g", "--cookies", cookiesPath]);
 }
 
 livesreamRouter.get("/proxy/*", middleware.request);
@@ -83,24 +80,27 @@ livesreamRouter.get("/output.m3u8", async (req, res) => {
 
 livesreamRouter.get("/raw", async (_req, res) => {
   const cookiesPath = path.resolve("cookies/cookies");
-  const ytdlpath = path.resolve(".");
-// //   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
   const url = await readFile("url", "utf8").catch(() => "");
   if (!url) {
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No URL Found!");
     return handleServiceResponse(serviceResponse, res);
   }
 
-//   const readableStream = ytDlpWrap.execStream([url, "--cookies", cookiesPath, "--ffmpeg-location", env.FFMPEG_PATH]);
-
-  readableStream.pipe(res);
+  const ytdlp = await spawnYtDlp([url, "--cookies", cookiesPath, "--ffmpeg-location", env.FFMPEG_PATH]);
+  ytdlp.stderr.on("data", (data) => logger.error(`yt-dlp error output: ${data.toString()}`));
+  ytdlp.on("error", (error) => {
+    logger.error(error);
+    if (!res.headersSent) {
+      const serviceResponse = ServiceResponse.failure("Something went wrong", null);
+      handleServiceResponse(serviceResponse, res);
+    }
+  });
+  ytdlp.stdout.pipe(res);
 });
 
 livesreamRouter.get("/index.m3u8", async (_req, res) => {
   const url = await readFile("url", "utf8").catch(() => "");
   const cookiesPath = path.resolve("cookies/cookies");
-  const ytdlpath = path.resolve(".");
-// //   const ytDlpWrap = new YTDlpWrap(`${ytdlpath}/yt-dlp`);
   if (!url) {
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No URL Found!");
     return handleServiceResponse(serviceResponse, res);
@@ -108,6 +108,15 @@ livesreamRouter.get("/index.m3u8", async (_req, res) => {
 
   if (url) {
     res.setHeader("Content-Type", "video/mp4");
-//     const readableStream = ytDlpWrap.execStream([url, "--cookies", cookiesPath, "--ffmpeg-location", env.FFMPEG_PATH]);
+    const ytdlp = await spawnYtDlp([url, "--cookies", cookiesPath, "--ffmpeg-location", env.FFMPEG_PATH]);
+    ytdlp.stderr.on("data", (data) => logger.error(`yt-dlp error output: ${data.toString()}`));
+    ytdlp.on("error", (error) => {
+      logger.error(error);
+      if (!res.headersSent) {
+        const serviceResponse = ServiceResponse.failure("Something went wrong", null);
+        handleServiceResponse(serviceResponse, res);
+      }
+    });
+    ytdlp.stdout.pipe(res);
   }
 });

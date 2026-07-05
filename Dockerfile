@@ -8,7 +8,7 @@ FROM jrottenberg/ffmpeg:5.1-nvidia AS nvffmpeg
 #############################
 # Stage 1: Base application image (Node)
 #############################
-FROM node:20-slim AS base
+FROM node:22-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
@@ -17,8 +17,8 @@ RUN apt-get update && \
     apt-get install -y python3 && \
     rm -rf /var/lib/apt/lists/*
 
-# Install pnpm globally
-RUN npm install -g pnpm
+# Install the pnpm version used by the lockfile
+RUN npm install -g pnpm@8.15.9
 
 # Set work directory and copy app code
 WORKDIR /app
@@ -29,13 +29,13 @@ COPY . /app
 #############################
 FROM base AS prod-deps
 # Use mount cache if available (optional)
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod 
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
 
 #############################
 # Stage 3: Build the application
 #############################
 FROM base AS build
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 # Run your build command (assumes it generates /app/dist)
 RUN pnpm build
 
