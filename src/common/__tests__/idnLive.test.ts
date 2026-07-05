@@ -1,4 +1,4 @@
-import { getIdnLiveStream } from "@/common/utils/idnLive";
+import { getIdnLiveStream, parseCookieFile } from "@/common/utils/idnLive";
 
 function nextDataHtml(pageProps: unknown) {
   return `<html><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify({
@@ -58,6 +58,59 @@ describe("IDN Live resolver", () => {
       slug: "theater-show",
       title: "JKT48 Theater Detail",
     });
+  });
+
+  it("sends account cookies when resolving IDN pages", async () => {
+    const profileHtml = nextDataHtml({
+      profile: {
+        username: "jkt48-official",
+      },
+      livestreams: [
+        {
+          slug: "gold-room",
+          status: "LIVE",
+          title: "Gold Room",
+        },
+      ],
+    });
+    const detailHtml = nextDataHtml({
+      livestream: {
+        entity: {
+          playback_url: "https://cdn.idn.app/gold/master.m3u8",
+        },
+        slug: "gold-room",
+      },
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(profileHtml))
+      .mockResolvedValueOnce(new Response(detailHtml));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getIdnLiveStream("jkt48-official", "session_id=paid; idn_token=gold")).resolves.toMatchObject({
+      playbackUrl: "https://cdn.idn.app/gold/master.m3u8",
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://www.idn.app/jkt48-official",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          cookie: "session_id=paid; idn_token=gold",
+        }),
+      }),
+    );
+  });
+
+  it("parses Netscape cookie exports and raw Cookie headers", () => {
+    expect(
+      parseCookieFile(
+        [
+          "# Netscape HTTP Cookie File",
+          ".idn.app\tTRUE\t/\tTRUE\t2147483647\tsession_id\tpaid",
+          "idn_token=gold; another=value",
+        ].join("\n"),
+      ),
+    ).toBe("session_id=paid; idn_token=gold; another=value");
   });
 
   it("returns null when the IDN profile has no livestream", async () => {

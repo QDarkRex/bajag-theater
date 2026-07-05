@@ -37,6 +37,33 @@ export type IdnLiveStream = {
   title?: string;
 };
 
+export function parseCookieFile(fileContent: string) {
+  const cookies: string[] = [];
+
+  for (const line of fileContent.split(/\r?\n/)) {
+    const trimmed = line.trim();
+
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const tokens = trimmed.split("\t");
+    if (tokens.length >= 7) {
+      cookies.push(`${tokens[5]}=${tokens[6]}`);
+      continue;
+    }
+
+    for (const cookie of trimmed.split(";")) {
+      const pair = cookie.trim();
+      if (pair.includes("=")) {
+        cookies.push(pair);
+      }
+    }
+  }
+
+  return cookies.join("; ");
+}
+
 function buildIdnUrl(...segments: string[]) {
   const encodedSegments = segments.map((segment) => encodeURIComponent(segment));
   return `${IDN_BASE_URL}/${encodedSegments.join("/")}`;
@@ -52,16 +79,21 @@ function extractNextData(html: string): NextData {
   return JSON.parse(match[1]) as NextData;
 }
 
-async function fetchHtml(url: string) {
+async function fetchHtml(url: string, cookieHeader?: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const headers: HeadersInit = {
+    accept: "text/html,application/xhtml+xml",
+    "user-agent": "Mozilla/5.0 (compatible; bajag-theater/1.0)",
+  };
+
+  if (cookieHeader) {
+    headers.cookie = cookieHeader;
+  }
 
   try {
     const response = await fetch(url, {
-      headers: {
-        accept: "text/html,application/xhtml+xml",
-        "user-agent": "Mozilla/5.0 (compatible; bajag-theater/1.0)",
-      },
+      headers,
       signal: controller.signal,
     });
 
@@ -83,9 +115,9 @@ function getPlaybackUrl(stream?: IdnLivestream) {
   return stream?.entity?.playback_url || stream?.playback_url || "";
 }
 
-export async function getIdnLiveStream(username: string): Promise<IdnLiveStream | null> {
+export async function getIdnLiveStream(username: string, cookieHeader?: string): Promise<IdnLiveStream | null> {
   const profileUrl = buildIdnUrl(username);
-  const profileData = extractNextData(await fetchHtml(profileUrl));
+  const profileData = extractNextData(await fetchHtml(profileUrl, cookieHeader));
   const pageProps = profileData.props?.pageProps;
   const livestreams = pageProps?.livestreams ?? [];
   const stream = livestreams.find(isLiveStream) ?? livestreams.find(getPlaybackUrl);
@@ -96,7 +128,7 @@ export async function getIdnLiveStream(username: string): Promise<IdnLiveStream 
 
   const liveUsername = stream.creator?.username || pageProps?.profile?.username || username;
   const pageUrl = buildIdnUrl(liveUsername, "live", stream.slug);
-  const liveData = extractNextData(await fetchHtml(pageUrl));
+  const liveData = extractNextData(await fetchHtml(pageUrl, cookieHeader));
   const detailStream = liveData.props?.pageProps?.livestream ?? stream;
   const playbackUrl = getPlaybackUrl(detailStream) || getPlaybackUrl(stream);
 

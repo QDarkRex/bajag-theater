@@ -3,7 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 
 import { getFormattedDate } from "@/common/utils/date";
 import { env } from "@/common/utils/envConfig";
-import { getIdnLiveStream } from "@/common/utils/idnLive";
+import { getIdnLiveStream, parseCookieFile } from "@/common/utils/idnLive";
 import { app, logger } from "@/server";
 
 const HLS_CHECK_TIMEOUT_MS = 10000;
@@ -22,16 +22,38 @@ const onCloseSignal = () => {
   setTimeout(() => process.exit(1), 10000).unref(); // Force shutdown after 10s
 };
 
-async function isPlaybackUrlReachable(url: string) {
+async function readCookieHeader() {
+  const content = await readFile(env.COOKIES, "utf8").catch(() => "");
+  return parseCookieFile(content);
+}
+
+function streamlinkCookieArgs(cookieHeader: string) {
+  if (!cookieHeader) {
+    return [];
+  }
+
+  return cookieHeader
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .filter(Boolean)
+    .flatMap((cookie) => ["--http-cookie", cookie]);
+}
+
+async function isPlaybackUrlReachable(url: string, cookieHeader: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), HLS_CHECK_TIMEOUT_MS);
+  const headers: HeadersInit = {
+    accept: "application/vnd.apple.mpegurl,application/x-mpegurl,*/*",
+    "user-agent": "Mozilla/5.0 (compatible; bajag-theater/1.0)",
+  };
+
+  if (cookieHeader) {
+    headers.cookie = cookieHeader;
+  }
 
   try {
     const response = await fetch(url, {
-      headers: {
-        accept: "application/vnd.apple.mpegurl,application/x-mpegurl,*/*",
-        "user-agent": "Mozilla/5.0 (compatible; bajag-theater/1.0)",
-      },
+      headers,
       signal: controller.signal,
     });
 
@@ -53,6 +75,7 @@ async function isPlaybackUrlReachable(url: string) {
 
 async function downloadStream(url: string, quality: string, outputFile: string, maxRetries = 3): Promise<void> {
   let attempts = 0;
+  const cookieHeader = await readCookieHeader();
 
   while (attempts < maxRetries) {
     attempts++;
@@ -63,10 +86,19 @@ async function downloadStream(url: string, quality: string, outputFile: string, 
     // Build the Streamlink arguments.
     // Using --hls-live-restart to start the stream from the beginning.
     // The --player= option forces Streamlink to not launch any external player.
-    const args: string[] = ["--hls-live-restart", url, quality, "--no-config", "--player=", "-o", outputFile];
+    const args: string[] = [
+      "--hls-live-restart",
+      url,
+      quality,
+      "--no-config",
+      "--player=",
+      "-o",
+      outputFile,
+      ...streamlinkCookieArgs(cookieHeader),
+    ];
 
     // Log the complete command for debugging.
-    const commandStr = `streamlink ${args.map((arg) => `"${arg}"`).join(" ")}`;
+    const commandStr = `streamlink ${args.map((arg) => (arg.includes("=") ? '"[redacted]"' : `"${arg}"`)).join(" ")}`;
     logger.info(`Executing command:${commandStr}`);
 
     // Spawn the Streamlink process.
@@ -111,9 +143,10 @@ async function checkAndDownloadLivestream() {
   const output = `video/${date}.ts`;
 
   const isDownloading = (await readFile("isDownloading", "utf8").catch(() => "")) === "true";
+  const cookieHeader = await readCookieHeader();
   let url = (await readFile("url", "utf8").catch(() => "")).trim();
 
-  if (url && !isDownloading && !(await isPlaybackUrlReachable(url))) {
+  if (url && !isDownloading && !(await isPlaybackUrlReachable(url, cookieHeader))) {
     logger.info("Stored IDN playback URL is stale. Fetching a fresh stream URL.");
     await writeFile("url", "");
     url = "";
@@ -123,7 +156,7 @@ async function checkAndDownloadLivestream() {
   if (!url) {
     logger.info(`Fetching IDN Live stream for ${env.IDN_USERNAME}`);
     try {
-      const stream = await getIdnLiveStream(env.IDN_USERNAME);
+      const stream = await getIdnLiveStream(env.IDN_USERNAME, cookieHeader);
 
       if (!stream) {
         logger.info(`No IDN Live stream found for ${env.IDN_USERNAME}`);
