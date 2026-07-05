@@ -42,4 +42,5 @@ export const env = cleanEnv(process.env, {
   FFMPEG_PATH: str({ default: "/usr/bin/ffmpeg" }),
   DOWNLOAD_DIR: str({ default: "download" }),
   PROXY_URL: str({ default: "http://localhost:3000/livestream/proxy" }),
+  IDN_USERNAME: str({ default: "jkt48-official" }),
 });

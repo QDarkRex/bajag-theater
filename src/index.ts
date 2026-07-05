@@ -1,18 +1,17 @@
 import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 
-import { parseNetscapeCookies, transformInput } from "@/common/utils/dataMapping";
 import { getFormattedDate } from "@/common/utils/date";
 import { env } from "@/common/utils/envConfig";
-import { downloadYtDlp, runYtDlp } from "@/common/utils/ytDlp";
+import { getIdnLiveStream } from "@/common/utils/idnLive";
 import { app, logger } from "@/server";
+
+const HLS_CHECK_TIMEOUT_MS = 10000;
 
 const { NODE_ENV, HOST, PORT } = env;
 const server = app.listen(env.PORT, () => {
   logger.info(`Server (${NODE_ENV}) running on port http://${HOST}:${PORT}`);
 });
-let ytDlpUpdatePromise: Promise<void> | null = null;
 
 const onCloseSignal = () => {
   logger.info("sigint received, shutting down");
@@ -23,62 +22,36 @@ const onCloseSignal = () => {
   setTimeout(() => process.exit(1), 10000).unref(); // Force shutdown after 10s
 };
 
-async function getLatestYTDlpVersion() {
-  const raw = await fetch("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest");
-  const json = await raw.json();
-  return json?.tag_name as string;
-}
+async function isPlaybackUrlReachable(url: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HLS_CHECK_TIMEOUT_MS);
 
-async function ensureLatestYTDlp() {
-  if (ytDlpUpdatePromise) {
-    await ytDlpUpdatePromise;
-    return;
-  }
+  try {
+    const response = await fetch(url, {
+      headers: {
+        accept: "application/vnd.apple.mpegurl,application/x-mpegurl,*/*",
+        "user-agent": "Mozilla/5.0 (compatible; bajag-theater/1.0)",
+      },
+      signal: controller.signal,
+    });
 
-  ytDlpUpdatePromise = doEnsureLatestYTDlp().finally(() => {
-    ytDlpUpdatePromise = null;
-  });
-
-  await ytDlpUpdatePromise;
-}
-
-async function doEnsureLatestYTDlp() {
-  let localVersion = await getLocalYTDlpVersion();
-  const latestVersion = await getLatestYTDlpVersion();
-
-  if (!latestVersion) {
-    logger.warn("Unable to fetch the latest yt-dlp version. Skipping update check.");
-    return;
-  }
-
-  if (!localVersion || localVersion.trim() !== latestVersion.trim()) {
-    logger.info(`Updating yt-dlp: Local version (${localVersion || "missing"}) != Latest version (${latestVersion})`);
-    try {
-      const binaryPath = await downloadYtDlp();
-      localVersion = await getLocalYTDlpVersion();
-      logger.info(`yt-dlp has been updated at ${binaryPath} (${localVersion.trim()}).`);
-    } catch (error) {
-      logger.error("Error updating yt-dlp:", error);
+    if (!response.ok) {
+      return false;
     }
-  } else {
-    logger.info("yt-dlp is already up-to-date.");
+
+    const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    const manifest = await response.text();
+
+    return contentType.includes("mpegurl") || manifest.includes("#EXTM3U");
+  } catch (error) {
+    logger.warn({ error }, "Stored IDN playback URL is not reachable.");
+    return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
-async function getLocalYTDlpVersion() {
-  return runYtDlp(["--version"]).catch((error) => {
-    logger.warn({ error }, "Unable to read local yt-dlp version");
-    return "";
-  });
-}
-
-async function downloadStream(
-  url: string,
-  quality: string,
-  cookiesPath: string,
-  outputFile: string,
-  maxRetries = 3,
-): Promise<void> {
+async function downloadStream(url: string, quality: string, outputFile: string, maxRetries = 3): Promise<void> {
   let attempts = 0;
 
   while (attempts < maxRetries) {
@@ -91,22 +64,6 @@ async function downloadStream(
     // Using --hls-live-restart to start the stream from the beginning.
     // The --player= option forces Streamlink to not launch any external player.
     const args: string[] = ["--hls-live-restart", url, quality, "--no-config", "--player=", "-o", outputFile];
-
-    // If a cookie file is provided, read and parse it, then pass each cookie.
-    if (cookiesPath) {
-      try {
-        const cookieContent = await readFile(cookiesPath, "utf-8");
-        const cookies = parseNetscapeCookies(cookieContent);
-        cookies.forEach((cookie) => {
-          args.push("--http-cookie");
-          args.push(cookie);
-        });
-      } catch (err) {
-        logger.error("Error reading cookie file:", err);
-        await writeFile("isDownloading", "false");
-        throw err;
-      }
-    }
 
     // Log the complete command for debugging.
     const commandStr = `streamlink ${args.map((arg) => `"${arg}"`).join(" ")}`;
@@ -145,76 +102,49 @@ async function downloadStream(
 
   if (attempts >= maxRetries) {
     logger.error("Exceeded maximum retry attempts. Download failed.");
+    await writeFile("url", "");
   }
 }
 
 async function checkAndDownloadLivestream() {
-  const cookiesPath = path.resolve("cookies/cookies");
   const date = getFormattedDate();
   const output = `video/${date}.ts`;
-  const channel = env.isProd ? "https://www.youtube.com/@JKT48TV" : "https://www.youtube.com/@LofiGirl";
 
   const isDownloading = (await readFile("isDownloading", "utf8").catch(() => "")) === "true";
-  let url = await readFile("url", "utf8").catch(() => "");
+  let url = (await readFile("url", "utf8").catch(() => "")).trim();
 
-  await ensureLatestYTDlp();
-  const checkLivestream = async (streamUrl: string): Promise<boolean> => {
-    if (!url) {
-      logger.error("URL is missing. Skipping livestream status check.");
-      return false;
-    }
-
-    try {
-      const liveStatus = await runYtDlp([streamUrl, "--cookies", cookiesPath, "--print", "live_status"]);
-      return ["is_live", "true"].includes(liveStatus.trim().toLowerCase());
-    } catch (error) {
-      logger.error("Error while checking livestream status:");
-      logger.error(error);
-      return false;
-    }
-  };
+  if (url && !isDownloading && !(await isPlaybackUrlReachable(url))) {
+    logger.info("Stored IDN playback URL is stale. Fetching a fresh stream URL.");
+    await writeFile("url", "");
+    url = "";
+  }
 
   // Fetch URL if not present
   if (!url) {
-    logger.info(`Fetching URL for ${channel}`);
+    logger.info(`Fetching IDN Live stream for ${env.IDN_USERNAME}`);
     try {
-      const stdout = await runYtDlp([
-        "--cookies",
-        cookiesPath,
-        "--flat-playlist",
-        "--match-filter",
-        "is_live",
-        channel,
-        "--print-json",
-      ]);
+      const stream = await getIdnLiveStream(env.IDN_USERNAME);
 
-      const altered = transformInput(stdout);
-      const filtered = altered.filter((item) => item.is_live === true);
-      const tempUrl = filtered?.[0]?.url || "";
-      if (!tempUrl) {
-        logger.info("No live stream found");
+      if (!stream) {
+        logger.info(`No IDN Live stream found for ${env.IDN_USERNAME}`);
         return;
       }
-      logger.info(`URL found: ${tempUrl}`);
-      await writeFile("url", tempUrl);
-      url = tempUrl;
+
+      logger.info(`IDN Live stream found: ${stream.title || stream.slug} (${stream.pageUrl})`);
+      await writeFile("url", stream.playbackUrl);
+      url = stream.playbackUrl;
     } catch (error) {
-      logger.error("Error fetching URL:", error);
+      logger.error("Error fetching IDN Live stream:", error);
       logger.error(error);
       return;
     }
   }
 
-  // Check if livestream is ongoing
-  const livestreamOngoing = await checkLivestream(url);
+  logger.info(`Livestream found. ${isDownloading ? "Download process already started" : "Downloading"}`);
 
-  if (livestreamOngoing) {
-    logger.info(`Livestream found. ${isDownloading ? "Download process already started" : "Downloading"}`);
-
-    // Start download if not already downloading
-    if (!isDownloading) {
-      await downloadStream(url, "best", cookiesPath, output, 20);
-    }
+  // Start download if not already downloading
+  if (!isDownloading) {
+    await downloadStream(url, "best", output, 20);
   }
 }
 

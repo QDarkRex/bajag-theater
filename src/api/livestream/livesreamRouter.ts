@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { createApiResponse } from "@/api-docs/openAPIResponseBuilders";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 // @ts-ignore
@@ -31,7 +30,6 @@ const middleware = proxy({
 import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
-import { runYtDlp, spawnYtDlp } from "@/common/utils/ytDlp";
 import { logger } from "@/server";
 
 export const livestreamRegistry = new OpenAPIRegistry();
@@ -45,23 +43,21 @@ livestreamRegistry.registerPath({
 });
 
 async function getM3u8() {
-  const url = await readFile("url", "utf8").catch(() => "");
-  const cookiesPath = path.resolve("cookies/cookies");
-  return runYtDlp([url, "-g", "--cookies", cookiesPath]);
+  return (await readFile("url", "utf8").catch(() => "")).trim();
 }
 
 livesreamRouter.get("/proxy/*", middleware.request);
 
-livesreamRouter.get("/output.m3u8", async (req, res) => {
-  const url = await readFile("url", "utf8").catch(() => "");
+livesreamRouter.get("/output.m3u8", async (_req, res) => {
+  const url = await getM3u8();
   try {
     if (url) {
       logger.info(`URL already fetched (${url}). Skipping`);
       const proxy_url = `${env.PROXY_URL}`;
-      const video_url = await getM3u8();
+      const video_url = url;
       const file_extension = ".m3u8";
 
-      const hls_proxy_url = `${proxy_url}/${btoa(video_url)}${file_extension}`;
+      const hls_proxy_url = `${proxy_url}/${encodeURIComponent(Buffer.from(video_url).toString("base64"))}${file_extension}`;
 
       const file = await fetch(hls_proxy_url);
       const content = await file.text();
@@ -79,44 +75,21 @@ livesreamRouter.get("/output.m3u8", async (req, res) => {
 });
 
 livesreamRouter.get("/raw", async (_req, res) => {
-  const cookiesPath = path.resolve("cookies/cookies");
-  const url = await readFile("url", "utf8").catch(() => "");
+  const url = await getM3u8();
   if (!url) {
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No URL Found!");
     return handleServiceResponse(serviceResponse, res);
   }
 
-  const ytdlp = await spawnYtDlp([url, "--cookies", cookiesPath, "--ffmpeg-location", env.FFMPEG_PATH]);
-  ytdlp.stderr.on("data", (data) => logger.error(`yt-dlp error output: ${data.toString()}`));
-  ytdlp.on("error", (error) => {
-    logger.error(error);
-    if (!res.headersSent) {
-      const serviceResponse = ServiceResponse.failure("Something went wrong", null);
-      handleServiceResponse(serviceResponse, res);
-    }
-  });
-  ytdlp.stdout.pipe(res);
+  return res.redirect(url);
 });
 
 livesreamRouter.get("/index.m3u8", async (_req, res) => {
-  const url = await readFile("url", "utf8").catch(() => "");
-  const cookiesPath = path.resolve("cookies/cookies");
+  const url = await getM3u8();
   if (!url) {
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No URL Found!");
     return handleServiceResponse(serviceResponse, res);
   }
 
-  if (url) {
-    res.setHeader("Content-Type", "video/mp4");
-    const ytdlp = await spawnYtDlp([url, "--cookies", cookiesPath, "--ffmpeg-location", env.FFMPEG_PATH]);
-    ytdlp.stderr.on("data", (data) => logger.error(`yt-dlp error output: ${data.toString()}`));
-    ytdlp.on("error", (error) => {
-      logger.error(error);
-      if (!res.headersSent) {
-        const serviceResponse = ServiceResponse.failure("Something went wrong", null);
-        handleServiceResponse(serviceResponse, res);
-      }
-    });
-    ytdlp.stdout.pipe(res);
-  }
+  return res.redirect(url);
 });
