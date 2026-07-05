@@ -115,6 +115,38 @@ function getPlaybackUrl(stream?: IdnLivestream) {
   return stream?.entity?.playback_url || stream?.playback_url || "";
 }
 
+function parseIdnLiveUrl(liveUrl: string) {
+  const url = new URL(liveUrl);
+  const segments = url.pathname.split("/").filter(Boolean);
+
+  if (!url.hostname.endsWith("idn.app") || segments.length < 3 || segments[1] !== "live") {
+    throw new Error("IDN live URL must look like https://www.idn.app/{username}/live/{slug}");
+  }
+
+  return {
+    slug: decodeURIComponent(segments[2]),
+    username: decodeURIComponent(segments[0]),
+  };
+}
+
+export async function getIdnLiveStreamFromUrl(liveUrl: string, cookieHeader?: string): Promise<IdnLiveStream | null> {
+  const { slug } = parseIdnLiveUrl(liveUrl);
+  const liveData = extractNextData(await fetchHtml(liveUrl, cookieHeader));
+  const stream = liveData.props?.pageProps?.livestream;
+  const playbackUrl = getPlaybackUrl(stream);
+
+  if (!playbackUrl) {
+    return null;
+  }
+
+  return {
+    pageUrl: liveUrl,
+    playbackUrl,
+    slug: stream?.slug || slug,
+    title: stream?.title,
+  };
+}
+
 export async function getIdnLiveStream(username: string, cookieHeader?: string): Promise<IdnLiveStream | null> {
   const profileUrl = buildIdnUrl(username);
   const profileData = extractNextData(await fetchHtml(profileUrl, cookieHeader));

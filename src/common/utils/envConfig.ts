@@ -43,4 +43,5 @@ export const env = cleanEnv(process.env, {
   DOWNLOAD_DIR: str({ default: "download" }),
   PROXY_URL: str({ default: "http://localhost:6969/livestream/proxy" }),
   IDN_USERNAME: str({ default: "jkt48-official" }),
+  IDN_LIVE_URL: str({ default: "" }),
 });

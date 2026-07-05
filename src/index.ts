@@ -3,7 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 
 import { getFormattedDate } from "@/common/utils/date";
 import { env } from "@/common/utils/envConfig";
-import { getIdnLiveStream, parseCookieFile } from "@/common/utils/idnLive";
+import { getIdnLiveStream, getIdnLiveStreamFromUrl, parseCookieFile } from "@/common/utils/idnLive";
 import { app, logger } from "@/server";
 
 const HLS_CHECK_TIMEOUT_MS = 10000;
@@ -154,12 +154,23 @@ async function checkAndDownloadLivestream() {
 
   // Fetch URL if not present
   if (!url) {
-    logger.info(`Fetching IDN Live stream for ${env.IDN_USERNAME}`);
+    const directLiveUrl = env.IDN_LIVE_URL.trim();
+    logger.info(
+      directLiveUrl
+        ? `Fetching IDN Live stream from ${directLiveUrl}`
+        : `Fetching IDN Live stream for ${env.IDN_USERNAME}`,
+    );
     try {
-      const stream = await getIdnLiveStream(env.IDN_USERNAME, cookieHeader);
+      const stream = directLiveUrl
+        ? await getIdnLiveStreamFromUrl(directLiveUrl, cookieHeader)
+        : await getIdnLiveStream(env.IDN_USERNAME, cookieHeader);
 
       if (!stream) {
-        logger.info(`No IDN Live stream found for ${env.IDN_USERNAME}`);
+        logger.info(
+          directLiveUrl
+            ? `No playback URL found for ${directLiveUrl}`
+            : `No IDN Live stream found for ${env.IDN_USERNAME}`,
+        );
         return;
       }
 

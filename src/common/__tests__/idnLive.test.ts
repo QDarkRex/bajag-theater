@@ -1,4 +1,4 @@
-import { getIdnLiveStream, parseCookieFile } from "@/common/utils/idnLive";
+import { getIdnLiveStream, getIdnLiveStreamFromUrl, parseCookieFile } from "@/common/utils/idnLive";
 
 function nextDataHtml(pageProps: unknown) {
   return `<html><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify({
@@ -99,6 +99,28 @@ describe("IDN Live resolver", () => {
         }),
       }),
     );
+  });
+
+  it("resolves a direct IDN live URL", async () => {
+    const detailHtml = nextDataHtml({
+      livestream: {
+        playback_url: "https://cdn.idn.app/levi/master.m3u8",
+        slug: "ayo-ngobrol-bareng-260705220854",
+        title: "Ayo Ngobrol Bareng",
+      },
+    });
+    const fetchMock = vi.fn(async () => new Response(detailHtml));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getIdnLiveStreamFromUrl("https://www.idn.app/jkt48_levi/live/ayo-ngobrol-bareng-260705220854"),
+    ).resolves.toEqual({
+      pageUrl: "https://www.idn.app/jkt48_levi/live/ayo-ngobrol-bareng-260705220854",
+      playbackUrl: "https://cdn.idn.app/levi/master.m3u8",
+      slug: "ayo-ngobrol-bareng-260705220854",
+      title: "Ayo Ngobrol Bareng",
+    });
   });
 
   it("parses Netscape cookie exports and raw Cookie headers", () => {
