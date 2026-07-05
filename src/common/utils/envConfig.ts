@@ -32,8 +32,8 @@ const isValidPath = makeValidator((path) => {
 export const env = cleanEnv(process.env, {
   NODE_ENV: str({ default: "development", choices: ["development", "production", "test"] }),
   HOST: host({ default: "localhost" }),
-  PORT: port({ default: 3000 }),
-  CORS_ORIGIN: str({ default: "http://localhost:3000" }),
+  PORT: port({ default: 6969 }),
+  CORS_ORIGIN: str({ default: "http://localhost:6969" }),
   COMMON_RATE_LIMIT_MAX_REQUESTS: num({ default: 1000 }),
   COMMON_RATE_LIMIT_WINDOW_MS: num({ default: 1000 }),
   COOKIES: isValidPath({ default: "cookies/cookies" }),
@@ -41,6 +41,6 @@ export const env = cleanEnv(process.env, {
   HW_ACCEL: str({ default: "VAAPI", choices: ["NVENC", "VAAPI"] }),
   FFMPEG_PATH: str({ default: "/usr/bin/ffmpeg" }),
   DOWNLOAD_DIR: str({ default: "download" }),
-  PROXY_URL: str({ default: "http://localhost:3000/livestream/proxy" }),
+  PROXY_URL: str({ default: "http://localhost:6969/livestream/proxy" }),
   IDN_USERNAME: str({ default: "jkt48-official" }),
 });

@@ -66,5 +66,5 @@ ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/lib:$LD_LIBRARY_PATH"
 COPY --from=prod-deps /app/node_modules /app/node_modules
 COPY --from=build /app/dist /app/dist
 
-EXPOSE 3000
+EXPOSE 6969
 CMD ["pnpm", "start"]
