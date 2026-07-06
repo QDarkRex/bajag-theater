@@ -40,6 +40,31 @@
           <button id="copy" class="btn btn-neutral join-item">Copy</button>
         </div>
       </div>
+      <div class="rounded-md bg-base-200 py-4 px-3 mt-3">
+        <p class="font-semibold text-md md:text-xl">Stream Control</p>
+        <div class="grid grid-cols-1 gap-3 mt-3">
+          <label class="form-control">
+            <span class="label-text">IDN Live URL</span>
+            <input id="idn_live_url" class="input input-bordered w-full" type="url"
+              placeholder="https://www.idn.app/member/live/slug" />
+          </label>
+          <label class="form-control">
+            <span class="label-text">IDN Username</span>
+            <input id="idn_username" class="input input-bordered w-full" type="text" placeholder="jkt48_levi" />
+          </label>
+          <div class="flex flex-col md:flex-row gap-2">
+            <button id="save_stream" class="btn btn-primary">Save Stream</button>
+            <button id="refresh_stream" class="btn btn-neutral">Refresh</button>
+          </div>
+          <label class="form-control">
+            <span class="label-text">Cookies</span>
+            <textarea id="cookies_input" class="textarea textarea-bordered min-h-28"
+              placeholder="Paste Netscape cookies or Cookie header"></textarea>
+          </label>
+          <button id="save_cookies" class="btn btn-secondary">Save Cookies</button>
+          <p id="stream_status" class="text-sm min-h-5"></p>
+        </div>
+      </div>
     </div>
     </div>
 
@@ -162,6 +187,116 @@
     copyBtn.addEventListener("click", () => {
       updateClipboard(vlc_link.value);
     })
+
+    var idnLiveUrlInput = document.querySelector("#idn_live_url");
+    var idnUsernameInput = document.querySelector("#idn_username");
+    var cookiesInput = document.querySelector("#cookies_input");
+    var saveStreamBtn = document.querySelector("#save_stream");
+    var saveCookiesBtn = document.querySelector("#save_cookies");
+    var refreshStreamBtn = document.querySelector("#refresh_stream");
+    var streamStatus = document.querySelector("#stream_status");
+
+    function setStreamStatus(message) {
+      streamStatus.innerText = message;
+    }
+
+    function reloadPlayer() {
+      player.src({
+        src: `/livestream/output.m3u8?t=${Date.now()}`,
+        type: "application/x-mpegURL",
+      });
+
+      const nextPlayPromise = player.play();
+      if (nextPlayPromise?.catch) {
+        nextPlayPromise.catch(() => {});
+      }
+    }
+
+    function schedulePlayerReload() {
+      window.setTimeout(reloadPlayer, 16000);
+    }
+
+    async function loadStreamSettings() {
+      try {
+        const response = await fetch("/livestream/settings");
+        const settings = await response.json();
+        idnLiveUrlInput.value = settings.responseObject?.idnLiveUrl || "";
+        idnUsernameInput.value = settings.responseObject?.idnUsername || "";
+        setStreamStatus(settings.responseObject?.cookiesConfigured ? "Cookies saved" : "");
+      } catch (err) {
+        console.log(err);
+        setStreamStatus("Failed loading stream settings");
+      }
+    }
+
+    async function postJson(url, payload) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`);
+      }
+
+      return response.json();
+    }
+
+    saveStreamBtn.addEventListener("click", async () => {
+      saveStreamBtn.disabled = true;
+      setStreamStatus("Saving stream...");
+      try {
+        await postJson("/livestream/settings", {
+          idnLiveUrl: idnLiveUrlInput.value,
+          idnUsername: idnUsernameInput.value,
+        });
+        setStreamStatus("Stream saved. Refreshing...");
+        schedulePlayerReload();
+      } catch (err) {
+        console.log(err);
+        setStreamStatus("Failed saving stream");
+      } finally {
+        saveStreamBtn.disabled = false;
+      }
+    });
+
+    saveCookiesBtn.addEventListener("click", async () => {
+      saveCookiesBtn.disabled = true;
+      setStreamStatus("Saving cookies...");
+      try {
+        await postJson("/livestream/cookies", {
+          cookies: cookiesInput.value,
+        });
+        cookiesInput.value = "";
+        setStreamStatus("Cookies saved. Refreshing...");
+        schedulePlayerReload();
+      } catch (err) {
+        console.log(err);
+        setStreamStatus("Failed saving cookies");
+      } finally {
+        saveCookiesBtn.disabled = false;
+      }
+    });
+
+    refreshStreamBtn.addEventListener("click", async () => {
+      refreshStreamBtn.disabled = true;
+      setStreamStatus("Refreshing stream...");
+      try {
+        await postJson("/livestream/refresh", {});
+        setStreamStatus("Refresh requested");
+        schedulePlayerReload();
+      } catch (err) {
+        console.log(err);
+        setStreamStatus("Failed refreshing stream");
+      } finally {
+        refreshStreamBtn.disabled = false;
+      }
+    });
+
+    loadStreamSettings();
 
     fetch("/schedule/events").then((data) => {
       var json = data.json().then((events) => {

@@ -4,9 +4,12 @@ import { readFile, writeFile } from "node:fs/promises";
 import { getFormattedDate } from "@/common/utils/date";
 import { env } from "@/common/utils/envConfig";
 import { getIdnLiveStream, getIdnLiveStreamFromUrl, parseCookieFile } from "@/common/utils/idnLive";
+import { getRuntimeConfig } from "@/common/utils/runtimeConfig";
+import { clearActiveStreamProcess, getStreamGeneration, setActiveStreamProcess } from "@/common/utils/streamState";
 import { app, logger } from "@/server";
 
 const HLS_CHECK_TIMEOUT_MS = 10000;
+const LIVESTREAM_CHECK_INTERVAL_MS = 15 * 1000;
 
 const { NODE_ENV, HOST, PORT } = env;
 const server = app.listen(env.PORT, () => {
@@ -73,11 +76,17 @@ async function isPlaybackUrlReachable(url: string, cookieHeader: string) {
   }
 }
 
-async function downloadStream(url: string, quality: string, outputFile: string, maxRetries = 3): Promise<void> {
+async function downloadStream(
+  url: string,
+  quality: string,
+  outputFile: string,
+  generation: number,
+  maxRetries = 3,
+): Promise<void> {
   let attempts = 0;
   const cookieHeader = await readCookieHeader();
 
-  while (attempts < maxRetries) {
+  while (attempts < maxRetries && generation === getStreamGeneration()) {
     attempts++;
     logger.info(`Starting stream download attempt ${attempts}`);
     // Mark as downloading (for your service logic)
@@ -103,6 +112,7 @@ async function downloadStream(url: string, quality: string, outputFile: string, 
 
     // Spawn the Streamlink process.
     const proc = spawn("streamlink", args);
+    setActiveStreamProcess(proc);
 
     // Optionally listen to stdout for progress information.
     proc.stdout.on("data", (data: Buffer) => {
@@ -117,6 +127,13 @@ async function downloadStream(url: string, quality: string, outputFile: string, 
     const exitCode: number = await new Promise((resolve) => {
       proc.on("close", resolve);
     });
+    clearActiveStreamProcess(proc);
+
+    if (generation !== getStreamGeneration()) {
+      logger.info("Stream refresh requested. Stopping current download attempt.");
+      await writeFile("isDownloading", "false");
+      break;
+    }
 
     if (exitCode === 0) {
       logger.info("Stream download completed successfully.");
@@ -132,7 +149,7 @@ async function downloadStream(url: string, quality: string, outputFile: string, 
     }
   }
 
-  if (attempts >= maxRetries) {
+  if (attempts >= maxRetries && generation === getStreamGeneration()) {
     logger.error("Exceeded maximum retry attempts. Download failed.");
     await writeFile("url", "");
   }
@@ -154,22 +171,20 @@ async function checkAndDownloadLivestream() {
 
   // Fetch URL if not present
   if (!url) {
-    const directLiveUrl = env.IDN_LIVE_URL.trim();
+    const runtimeConfig = await getRuntimeConfig();
+    const directLiveUrl = runtimeConfig.idnLiveUrl.trim();
+    const idnUsername = runtimeConfig.idnUsername.trim();
     logger.info(
-      directLiveUrl
-        ? `Fetching IDN Live stream from ${directLiveUrl}`
-        : `Fetching IDN Live stream for ${env.IDN_USERNAME}`,
+      directLiveUrl ? `Fetching IDN Live stream from ${directLiveUrl}` : `Fetching IDN Live stream for ${idnUsername}`,
     );
     try {
       const stream = directLiveUrl
         ? await getIdnLiveStreamFromUrl(directLiveUrl, cookieHeader)
-        : await getIdnLiveStream(env.IDN_USERNAME, cookieHeader);
+        : await getIdnLiveStream(idnUsername, cookieHeader);
 
       if (!stream) {
         logger.info(
-          directLiveUrl
-            ? `No playback URL found for ${directLiveUrl}`
-            : `No IDN Live stream found for ${env.IDN_USERNAME}`,
+          directLiveUrl ? `No playback URL found for ${directLiveUrl}` : `No IDN Live stream found for ${idnUsername}`,
         );
         return;
       }
@@ -188,7 +203,7 @@ async function checkAndDownloadLivestream() {
 
   // Start download if not already downloading
   if (!isDownloading) {
-    await downloadStream(url, "best", output, 20);
+    await downloadStream(url, "best", output, getStreamGeneration(), 20);
   }
 }
 
@@ -197,7 +212,7 @@ setInterval(() => {
     logger.error("Livestream watcher failed:");
     logger.error(error);
   });
-}, 60 * 1000);
+}, LIVESTREAM_CHECK_INTERVAL_MS);
 
 checkAndDownloadLivestream().catch((error) => {
   logger.error("Initial livestream check failed:");

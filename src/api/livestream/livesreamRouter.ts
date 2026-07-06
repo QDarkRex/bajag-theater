@@ -1,6 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createApiResponse } from "@/api-docs/openAPIResponseBuilders";
+import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
+import { getCookieStatus, getRuntimeConfig, saveCookieFile, saveRuntimeConfig } from "@/common/utils/runtimeConfig";
+import { requestStreamRefresh } from "@/common/utils/streamState";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 // @ts-ignore
 import proxy from "@warren-bank/hls-proxy/hls-proxy/proxy";
@@ -28,7 +31,6 @@ const middleware = proxy({
   segment_extension: null,
 });
 
-import { ServiceResponse } from "@/common/models/serviceResponse";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
 import { logger } from "@/server";
 
@@ -46,7 +48,66 @@ async function getM3u8() {
   return (await readFile("url", "utf8").catch(() => "")).trim();
 }
 
+async function clearCurrentStream() {
+  requestStreamRefresh();
+  await writeFile("url", "");
+  await writeFile("isDownloading", "false");
+}
+
 livesreamRouter.get("/proxy/*", middleware.request);
+
+livesreamRouter.get("/settings", async (_req, res) => {
+  const [runtimeConfig, cookieStatus] = await Promise.all([getRuntimeConfig(), getCookieStatus()]);
+
+  const serviceResponse = ServiceResponse.success("Success!", {
+    idnLiveUrl: runtimeConfig.idnLiveUrl,
+    idnUsername: runtimeConfig.idnUsername,
+    updatedAt: runtimeConfig.updatedAt,
+    cookiesConfigured: cookieStatus.configured,
+  });
+
+  return handleServiceResponse(serviceResponse, res);
+});
+
+livesreamRouter.post("/settings", async (req, res) => {
+  const schema = z.object({
+    idnLiveUrl: z.string().optional().default(""),
+    idnUsername: z.string().optional().default(""),
+  });
+  const body = schema.parse(req.body);
+  const config = await saveRuntimeConfig(body);
+  await clearCurrentStream();
+
+  const serviceResponse = ServiceResponse.success("Settings saved.", {
+    idnLiveUrl: config.idnLiveUrl,
+    idnUsername: config.idnUsername,
+    updatedAt: config.updatedAt,
+  });
+
+  return handleServiceResponse(serviceResponse, res);
+});
+
+livesreamRouter.post("/cookies", async (req, res) => {
+  const schema = z.object({
+    cookies: z.string().default(""),
+  });
+  const body = schema.parse(req.body);
+  await saveCookieFile(body.cookies);
+  await clearCurrentStream();
+
+  const serviceResponse = ServiceResponse.success("Cookies saved.", {
+    cookiesConfigured: body.cookies.trim().length > 0,
+  });
+
+  return handleServiceResponse(serviceResponse, res);
+});
+
+livesreamRouter.post("/refresh", async (_req, res) => {
+  await clearCurrentStream();
+
+  const serviceResponse = ServiceResponse.success("Stream refresh requested.", null);
+  return handleServiceResponse(serviceResponse, res);
+});
 
 livesreamRouter.get("/output.m3u8", async (_req, res) => {
   const url = await getM3u8();
