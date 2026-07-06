@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { createApiResponse } from "@/api-docs/openAPIResponseBuilders";
+import { env } from "@/common/utils/envConfig";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 // @ts-ignore
 import proxy from "@warren-bank/hls-proxy/hls-proxy/proxy";
@@ -7,7 +8,7 @@ import express, { type Router } from "express";
 import { z } from "zod";
 
 const middleware = proxy({
-  is_secure: true,
+  is_secure: env.PROXY_URL.startsWith("https://"),
   host: null,
   copy_req_headers: false,
   req_headers: null,
@@ -28,7 +29,6 @@ const middleware = proxy({
 });
 
 import { ServiceResponse } from "@/common/models/serviceResponse";
-import { env } from "@/common/utils/envConfig";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
 import { logger } from "@/server";
 
@@ -61,8 +61,7 @@ livesreamRouter.get("/output.m3u8", async (_req, res) => {
 
       const file = await fetch(hls_proxy_url);
       const content = await file.text();
-      const serviceResponse = ServiceResponse.success("Success!", content);
-      return handleServiceResponse(serviceResponse, res, true);
+      return res.status(200).type("application/vnd.apple.mpegurl").send(content);
     }
 
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No livestream URL!");

@@ -113,7 +113,10 @@
     var player = videojs('vid1', {
       responsive: true
     });
-    player.play();
+    const playPromise = player.play();
+    if (playPromise?.catch) {
+      playPromise.catch(() => {});
+    }
 
     var dateElement = document.querySelector("#date");
     var options = {
@@ -178,7 +181,8 @@
         });
 
         for (let i = 1; i <= 7; i++) {
-          document.querySelector(`#day${i}`).innerHTML = `${eventsThisWeek[i - 1].event_name ? `<p class="px-3 rounded-md py-2 bg-primary text-white font-semibold">${eventsThisWeek[i - 1].event_time}<p/> ${eventsThisWeek[i - 1].event_name}` : ""}`;
+          const event = eventsThisWeek[i - 1];
+          document.querySelector(`#day${i}`).innerHTML = event?.event_name ? `<p class="px-3 rounded-md py-2 bg-primary text-white font-semibold">${event.event_time}<p/> ${event.event_name}` : "";
         }
       })
     });
