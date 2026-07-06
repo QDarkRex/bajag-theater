@@ -5,31 +5,8 @@ import { env } from "@/common/utils/envConfig";
 import { getCookieStatus, getRuntimeConfig, saveCookieFile, saveRuntimeConfig } from "@/common/utils/runtimeConfig";
 import { requestStreamRefresh } from "@/common/utils/streamState";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
-// @ts-ignore
-import proxy from "@warren-bank/hls-proxy/hls-proxy/proxy";
-import express, { type Router } from "express";
+import express, { type Response, type Router } from "express";
 import { z } from "zod";
-
-const middleware = proxy({
-  is_secure: env.PROXY_URL.startsWith("https://"),
-  host: null,
-  copy_req_headers: false,
-  req_headers: null,
-  req_options: null,
-  hooks: null,
-  cache_segments: true,
-  max_segments: 20,
-  cache_timeout: 60,
-  cache_key: 0,
-  cache_storage: null,
-  cache_storage_fs_dirpath: null,
-  debug_level: 3,
-  acl_ip: null,
-  acl_pass: null,
-  http_proxy: null,
-  manifest_extension: null,
-  segment_extension: null,
-});
 
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
 import { logger } from "@/server";
@@ -54,7 +31,104 @@ async function clearCurrentStream() {
   await writeFile("isDownloading", "false");
 }
 
-livesreamRouter.get("/proxy/*", middleware.request);
+function getProxyExtension(targetUrl: string) {
+  const pathname = new URL(targetUrl).pathname;
+  const match = pathname.match(/\.[a-z0-9]+$/i);
+  return match?.[0] ?? "";
+}
+
+function toProxyUrl(targetUrl: string) {
+  const encodedUrl = Buffer.from(targetUrl).toString("base64url");
+  return `${env.PROXY_URL}/${encodedUrl}${getProxyExtension(targetUrl)}`;
+}
+
+function decodeProxyTarget(proxyPath: string) {
+  const lastPathPart = proxyPath.split("/").filter(Boolean).at(-1) ?? "";
+  const encodedUrl = decodeURIComponent(lastPathPart).replace(/\.[a-z0-9]+$/i, "");
+  const targetUrl = Buffer.from(encodedUrl, "base64url").toString("utf8");
+
+  if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
+    throw new Error("Invalid proxied livestream URL.");
+  }
+
+  return targetUrl;
+}
+
+function resolveProxyUrl(uri: string, baseUrl: string) {
+  if (uri.startsWith("data:")) {
+    return uri;
+  }
+
+  return toProxyUrl(new URL(uri, baseUrl).toString());
+}
+
+function rewriteManifest(manifest: string, baseUrl: string) {
+  return manifest
+    .split("\n")
+    .map((line) => {
+      const trimmedLine = line.trim();
+
+      if (!trimmedLine) {
+        return line;
+      }
+
+      if (trimmedLine.startsWith("#EXT-X-PREFETCH:")) {
+        const [prefix, uri] = line.split(/:(.+)/);
+        return `${prefix}:${resolveProxyUrl(uri, baseUrl)}`;
+      }
+
+      if (trimmedLine.startsWith("#")) {
+        return line.replace(/URI="([^"]+)"/g, (_match, uri: string) => `URI="${resolveProxyUrl(uri, baseUrl)}"`);
+      }
+
+      return resolveProxyUrl(trimmedLine, baseUrl);
+    })
+    .join("\n");
+}
+
+function isManifestResponse(targetUrl: string, response: globalThis.Response) {
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  return targetUrl.includes(".m3u8") || contentType.includes("mpegurl") || contentType.includes("vnd.apple");
+}
+
+async function proxyHlsResource(targetUrl: string, res: Response) {
+  const response = await fetch(targetUrl, {
+    headers: {
+      accept: "application/vnd.apple.mpegurl,application/x-mpegurl,video/mp2t,*/*",
+      "user-agent": "Mozilla/5.0 (compatible; bajag-theater/1.0)",
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    logger.warn({ status: response.status, targetUrl, body }, "HLS proxy target returned an error.");
+    return res.status(response.status).send(body || response.statusText);
+  }
+
+  if (isManifestResponse(targetUrl, response)) {
+    const manifest = await response.text();
+    const rewrittenManifest = rewriteManifest(manifest, targetUrl);
+    return res
+      .status(200)
+      .setHeader("Cache-Control", "no-cache, no-store, private")
+      .type("application/vnd.apple.mpegurl")
+      .send(rewrittenManifest);
+  }
+
+  const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+  const buffer = Buffer.from(await response.arrayBuffer());
+  return res.status(200).setHeader("Cache-Control", "public, max-age=60").type(contentType).send(buffer);
+}
+
+livesreamRouter.get("/proxy/*", async (req, res) => {
+  try {
+    const targetUrl = decodeProxyTarget(req.params[0]);
+    return await proxyHlsResource(targetUrl, res);
+  } catch (error) {
+    logger.error(error);
+    return res.status(400).send("Invalid livestream proxy URL.");
+  }
+});
 
 livesreamRouter.get("/settings", async (_req, res) => {
   const [runtimeConfig, cookieStatus] = await Promise.all([getRuntimeConfig(), getCookieStatus()]);
@@ -114,15 +188,7 @@ livesreamRouter.get("/output.m3u8", async (_req, res) => {
   try {
     if (url) {
       logger.info(`URL already fetched (${url}). Skipping`);
-      const proxy_url = `${env.PROXY_URL}`;
-      const video_url = url;
-      const file_extension = ".m3u8";
-
-      const hls_proxy_url = `${proxy_url}/${encodeURIComponent(Buffer.from(video_url).toString("base64"))}${file_extension}`;
-
-      const file = await fetch(hls_proxy_url);
-      const content = await file.text();
-      return res.status(200).type("application/vnd.apple.mpegurl").send(content);
+      return await proxyHlsResource(url, res);
     }
 
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No livestream URL!");
