@@ -54,7 +54,7 @@
           </label>
           <div class="flex flex-col md:flex-row gap-2">
             <button id="save_stream" class="btn btn-primary">Save Stream</button>
-            <button id="refresh_stream" class="btn btn-neutral">Refresh</button>
+            <button id="refresh_stream" class="btn btn-neutral">Save & Refresh</button>
           </div>
           <label class="form-control">
             <span class="label-text">Cookies</span>
@@ -245,14 +245,18 @@
       return response.json();
     }
 
+    async function saveStreamSettings() {
+      await postJson("/livestream/settings", {
+        idnLiveUrl: idnLiveUrlInput.value,
+        idnUsername: idnUsernameInput.value,
+      });
+    }
+
     saveStreamBtn.addEventListener("click", async () => {
       saveStreamBtn.disabled = true;
       setStreamStatus("Saving stream...");
       try {
-        await postJson("/livestream/settings", {
-          idnLiveUrl: idnLiveUrlInput.value,
-          idnUsername: idnUsernameInput.value,
-        });
+        await saveStreamSettings();
         setStreamStatus("Stream saved. Refreshing...");
         schedulePlayerReload();
       } catch (err) {
@@ -283,16 +287,19 @@
 
     refreshStreamBtn.addEventListener("click", async () => {
       refreshStreamBtn.disabled = true;
-      setStreamStatus("Refreshing stream...");
+      saveStreamBtn.disabled = true;
+      setStreamStatus("Saving and refreshing stream...");
       try {
+        await saveStreamSettings();
         await postJson("/livestream/refresh", {});
-        setStreamStatus("Refresh requested");
+        setStreamStatus("Refresh requested. Reloading player...");
         schedulePlayerReload();
       } catch (err) {
         console.log(err);
-        setStreamStatus("Failed refreshing stream");
+        setStreamStatus("Failed saving or refreshing stream");
       } finally {
         refreshStreamBtn.disabled = false;
+        saveStreamBtn.disabled = false;
       }
     });
 
