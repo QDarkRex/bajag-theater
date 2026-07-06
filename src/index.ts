@@ -10,6 +10,7 @@ import { app, logger } from "@/server";
 
 const HLS_CHECK_TIMEOUT_MS = 10000;
 const LIVESTREAM_CHECK_INTERVAL_MS = 15 * 1000;
+const STREAMLINK_RETRY_DELAY_MS = 1500;
 
 const { NODE_ENV, HOST, PORT } = env;
 const server = app.listen(env.PORT, () => {
@@ -86,72 +87,80 @@ async function downloadStream(
   let attempts = 0;
   const cookieHeader = await readCookieHeader();
 
-  while (attempts < maxRetries && generation === getStreamGeneration()) {
-    attempts++;
-    logger.info(`Starting stream download attempt ${attempts}`);
-    // Mark as downloading (for your service logic)
-    await writeFile("isDownloading", "true");
+  await writeFile("isDownloading", "true");
 
-    // Build the Streamlink arguments.
-    // Using --hls-live-restart to start the stream from the beginning.
-    // The --player= option forces Streamlink to not launch any external player.
-    const args: string[] = [
-      "--hls-live-restart",
-      url,
-      quality,
-      "--no-config",
-      "--player=",
-      "-o",
-      outputFile,
-      ...streamlinkCookieArgs(cookieHeader),
-    ];
+  try {
+    while (attempts < maxRetries && generation === getStreamGeneration()) {
+      attempts++;
+      logger.info(`Starting stream download attempt ${attempts}`);
 
-    // Log the complete command for debugging.
-    const commandStr = `streamlink ${args.map((arg) => (arg.includes("=") ? '"[redacted]"' : `"${arg}"`)).join(" ")}`;
-    logger.info(`Executing command:${commandStr}`);
+      const args: string[] = [
+        "--hls-live-restart",
+        "-o",
+        outputFile,
+        ...streamlinkCookieArgs(cookieHeader),
+        url,
+        quality,
+      ];
 
-    // Spawn the Streamlink process.
-    const proc = spawn("streamlink", args);
-    setActiveStreamProcess(proc);
+      const commandStr = `streamlink ${args.map((arg) => (arg.includes("=") ? '"[redacted]"' : `"${arg}"`)).join(" ")}`;
+      logger.info(`Executing command:${commandStr}`);
 
-    // Optionally listen to stdout for progress information.
-    proc.stdout.on("data", (data: Buffer) => {
-      logger.info(`Progress: ${data.toString()}`);
-    });
-    // Log any error output.
-    proc.stderr.on("data", (data: Buffer) => {
-      logger.error(`Streamlink error output: ${data.toString()}`);
-    });
+      const proc = spawn("streamlink", args);
+      setActiveStreamProcess(proc);
 
-    // Wait for the process to complete.
-    const exitCode: number = await new Promise((resolve) => {
-      proc.on("close", resolve);
-    });
-    clearActiveStreamProcess(proc);
+      proc.stdout.on("data", (data: Buffer) => {
+        logger.info(`Progress: ${data.toString()}`);
+      });
 
-    if (generation !== getStreamGeneration()) {
-      logger.info("Stream refresh requested. Stopping current download attempt.");
-      await writeFile("isDownloading", "false");
-      break;
+      proc.stderr.on("data", (data: Buffer) => {
+        logger.error(`Streamlink error output: ${data.toString()}`);
+      });
+
+      const exitCode: number = await new Promise((resolve) => {
+        let settled = false;
+        const settle = (code: number) => {
+          if (!settled) {
+            settled = true;
+            resolve(code);
+          }
+        };
+
+        proc.on("error", (error) => {
+          logger.error({ error }, "Failed to start Streamlink.");
+          settle(1);
+        });
+
+        proc.on("close", (code) => {
+          settle(code ?? 1);
+        });
+      });
+      clearActiveStreamProcess(proc);
+
+      if (generation !== getStreamGeneration()) {
+        logger.info("Stream refresh requested. Stopping current download attempt.");
+        break;
+      }
+
+      if (exitCode === 0) {
+        logger.info("Stream download completed successfully.");
+        await writeFile("url", "");
+        break;
+      }
+
+      logger.error(`Download failed with exit code ${exitCode}. Retrying in ${STREAMLINK_RETRY_DELAY_MS}ms...`);
+      if (attempts < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, STREAMLINK_RETRY_DELAY_MS));
+      }
     }
 
-    if (exitCode === 0) {
-      logger.info("Stream download completed successfully.");
-      await writeFile("isDownloading", "false");
-      // Clear URL or perform any post-download cleanup.
-      await writeFile("url", "");
-      break;
-    } else {
-      logger.error(`Download failed with exit code ${exitCode}. Retrying in 10 seconds...`);
-      await writeFile("isDownloading", "false");
-      // Wait before retrying.
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (attempts >= maxRetries && generation === getStreamGeneration()) {
+      logger.error("Exceeded maximum retry attempts. Recording failed; keeping the playback URL available.");
     }
-  }
-
-  if (attempts >= maxRetries && generation === getStreamGeneration()) {
-    logger.error("Exceeded maximum retry attempts. Download failed.");
-    await writeFile("url", "");
+  } finally {
+    if (generation === getStreamGeneration()) {
+      await writeFile("isDownloading", "false");
+    }
   }
 }
 
