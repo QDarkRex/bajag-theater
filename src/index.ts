@@ -202,8 +202,7 @@ async function checkAndDownloadLivestream() {
       await writeFile("url", stream.playbackUrl);
       url = stream.playbackUrl;
     } catch (error) {
-      logger.error("Error fetching IDN Live stream:", error);
-      logger.error(error);
+      logger.error({ error }, "Error fetching IDN Live stream.");
       return;
     }
   }

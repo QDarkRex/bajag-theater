@@ -25,13 +25,21 @@ describe("Replay Endpoints ", () => {
     expect(result.message).toEqual(undefined);
   });
 
-  it("GET /replay/play/* - failure", async () => {
+  it("GET /replay/play/* - missing file returns 404", async () => {
     const response = await request(app).get("/replay/play/replay/2025-01-01.mkv");
     const result: ServiceResponse = response.body;
 
-    expect(response.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
+    expect(response.statusCode).toEqual(StatusCodes.NOT_FOUND);
     expect(result.success).toBeFalsy();
     expect(result.responseObject).toBeFalsy();
-    expect(result.message).toEqual(undefined);
+  });
+
+  it("GET /replay/play/* - rejects path traversal outside the replay folder", async () => {
+    const response = await request(app).get("/replay/play/..%2f..%2f..%2f..%2fetc%2fpasswd");
+    const result: ServiceResponse = response.body;
+
+    // The traversal must be refused, never served as a file.
+    expect(response.statusCode).toEqual(StatusCodes.NOT_FOUND);
+    expect(result.success).toBeFalsy();
   });
 });

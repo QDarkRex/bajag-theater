@@ -21,7 +21,7 @@ async function readRuntimeConfigFile(): Promise<Partial<RuntimeConfig>> {
 }
 
 export async function getRuntimeConfig(): Promise<RuntimeConfig> {
-  const saved = await readRuntimeConfigFile().catch(() => ({}));
+  const saved: Partial<RuntimeConfig> = await readRuntimeConfigFile().catch(() => ({}));
 
   return {
     idnLiveUrl: saved.idnLiveUrl?.trim() ?? env.IDN_LIVE_URL.trim(),

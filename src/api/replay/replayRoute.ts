@@ -16,6 +16,23 @@ import { handleServiceResponse, validateRequest } from "@/common/utils/httpHandl
 export const replayRegistry = new OpenAPIRegistry();
 export const replayRouter: Router = express.Router();
 
+// Replays are always listed from (and therefore served out of) the "replay"
+// folder. Confine every user-supplied path to that directory so a crafted
+// request such as "../../etc/passwd" or an absolute path cannot read arbitrary
+// files on the host.
+const REPLAY_ROOT = path.resolve("replay");
+
+function resolveReplayPath(requestedPath: string): string | null {
+  const resolved = path.resolve(requestedPath);
+  const relative = path.relative(REPLAY_ROOT, resolved);
+
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    return null;
+  }
+
+  return resolved;
+}
+
 replayRegistry.registerPath({
   method: "get",
   path: "/replay/{date}",
@@ -87,15 +104,15 @@ interface Params {
 
 replayRouter.get("/duration/*", (req, res) => {
   const params = req.params as unknown as Params;
-  const filepath = path.resolve(params[0]);
-  if (!existsSync(filepath)) {
-    const serviceResponse = ServiceResponse.failure("File does not exist!", null);
+  const filepath = resolveReplayPath(params[0]);
+  if (!filepath || !existsSync(filepath)) {
+    const serviceResponse = ServiceResponse.failure("File does not exist!", null, StatusCodes.NOT_FOUND);
     return handleServiceResponse(serviceResponse, res);
   }
 
   ffmpeg.ffprobe(filepath, (err, metadata) => {
     if (err) {
-      const serviceResponse = ServiceResponse.failure("File does not exist!", null);
+      const serviceResponse = ServiceResponse.failure("File does not exist!", null, StatusCodes.NOT_FOUND);
       return handleServiceResponse(serviceResponse, res);
     }
     const serviceResponse = ServiceResponse.success("Success getting duration", metadata.format.duration);
@@ -105,14 +122,15 @@ replayRouter.get("/duration/*", (req, res) => {
 
 replayRouter.get("/play/*", (req, res) => {
   const params = req.params as unknown as Params;
-  const filepath = path.resolve(params[0]);
-  const videoSize = statSync(filepath).size;
-  const range = req.headers.range || `bytes=0-${Math.min(10 ** 6 - 1, videoSize - 1)}`;
+  const filepath = resolveReplayPath(params[0]);
 
-  if (!existsSync(filepath)) {
-    const serviceResponse = ServiceResponse.failure("File does not exist!", null);
+  if (!filepath || !existsSync(filepath)) {
+    const serviceResponse = ServiceResponse.failure("File does not exist!", null, StatusCodes.NOT_FOUND);
     return handleServiceResponse(serviceResponse, res);
   }
+
+  const videoSize = statSync(filepath).size;
+  const range = req.headers.range || `bytes=0-${Math.min(10 ** 6 - 1, videoSize - 1)}`;
 
   const CHUNK_SIZE = 10 ** 6;
   const start = Number(range.replace(/\D/g, ""));
