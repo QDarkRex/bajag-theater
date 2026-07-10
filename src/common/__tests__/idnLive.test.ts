@@ -123,6 +123,39 @@ describe("IDN Live resolver", () => {
     });
   });
 
+  it("unwraps a Gold /live/preview/ URL to the real live page", async () => {
+    const detailHtml = nextDataHtml({
+      livestream: {
+        entity: {
+          playback_url: "https://cdn.idn.app/gold/master.m3u8",
+        },
+        slug: "itadakilove-2026-07-10-260702211317",
+        title: "Itadaki Love",
+      },
+    });
+    const fetchMock = vi.fn(async () => new Response(detailHtml));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getIdnLiveStreamFromUrl(
+      "https://www.idn.app/jkt48-official/live/preview/itadakilove-2026-07-10-260702211317",
+      "session_id=paid",
+    );
+
+    // The preview segment must be dropped and the canonical live page fetched.
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://www.idn.app/jkt48-official/live/itadakilove-2026-07-10-260702211317",
+      expect.objectContaining({
+        headers: expect.objectContaining({ cookie: "session_id=paid" }),
+      }),
+    );
+    expect(result).toMatchObject({
+      pageUrl: "https://www.idn.app/jkt48-official/live/itadakilove-2026-07-10-260702211317",
+      playbackUrl: "https://cdn.idn.app/gold/master.m3u8",
+      slug: "itadakilove-2026-07-10-260702211317",
+    });
+  });
+
   it("parses Netscape cookie exports and raw Cookie headers", () => {
     expect(
       parseCookieFile(

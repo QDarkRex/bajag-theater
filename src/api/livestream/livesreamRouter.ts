@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createApiResponse } from "@/api-docs/openAPIResponseBuilders";
 import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
+import { parseCookieFile } from "@/common/utils/idnLive";
 import { getCookieStatus, getRuntimeConfig, saveCookieFile, saveRuntimeConfig } from "@/common/utils/runtimeConfig";
 import { requestStreamRefresh } from "@/common/utils/streamState";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
@@ -23,6 +24,47 @@ livestreamRegistry.registerPath({
 
 async function getM3u8() {
   return (await readFile("url", "utf8").catch(() => "")).trim();
+}
+
+async function readCookieHeader() {
+  const content = await readFile(env.COOKIES, "utf8").catch(() => "");
+  return parseCookieFile(content);
+}
+
+function isIdnHost(hostname: string) {
+  return hostname === "idn.app" || hostname.endsWith(".idn.app");
+}
+
+function hostnameOf(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+// Gold segments can require the account cookie, but the /proxy endpoint accepts
+// any public URL, so blindly forwarding cookies would leak the IDN session to an
+// arbitrary host. Only attach the cookie to IDN's own hosts or to the host of the
+// stream we are currently serving.
+async function buildProxyRequestHeaders(targetUrl: string): Promise<HeadersInit> {
+  const headers: HeadersInit = {
+    accept: "application/vnd.apple.mpegurl,application/x-mpegurl,video/mp2t,*/*",
+    "user-agent": "Mozilla/5.0 (compatible; bajag-theater/1.0)",
+  };
+
+  const targetHost = hostnameOf(targetUrl);
+  const streamHost = hostnameOf(await getM3u8());
+  const trusted = !!targetHost && (isIdnHost(targetHost) || targetHost === streamHost);
+
+  if (trusted) {
+    const cookieHeader = await readCookieHeader();
+    if (cookieHeader) {
+      headers.cookie = cookieHeader;
+    }
+  }
+
+  return headers;
 }
 
 async function clearCurrentStream() {
@@ -134,10 +176,7 @@ function isManifestResponse(targetUrl: string, response: globalThis.Response) {
 
 async function proxyHlsResource(targetUrl: string, res: Response) {
   const response = await fetch(targetUrl, {
-    headers: {
-      accept: "application/vnd.apple.mpegurl,application/x-mpegurl,video/mp2t,*/*",
-      "user-agent": "Mozilla/5.0 (compatible; bajag-theater/1.0)",
-    },
+    headers: await buildProxyRequestHeaders(targetUrl),
   });
 
   if (!response.ok) {

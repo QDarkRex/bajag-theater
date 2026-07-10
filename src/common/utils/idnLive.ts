@@ -115,23 +115,33 @@ function getPlaybackUrl(stream?: IdnLivestream) {
   return stream?.entity?.playback_url || stream?.playback_url || "";
 }
 
+function isIdnHost(hostname: string) {
+  return hostname === "idn.app" || hostname.endsWith(".idn.app");
+}
+
 function parseIdnLiveUrl(liveUrl: string) {
   const url = new URL(liveUrl);
   const segments = url.pathname.split("/").filter(Boolean);
 
-  if (!url.hostname.endsWith("idn.app") || segments.length < 3 || segments[1] !== "live") {
+  if (!isIdnHost(url.hostname) || segments.length < 3 || segments[1] !== "live") {
     throw new Error("IDN live URL must look like https://www.idn.app/{username}/live/{slug}");
   }
 
-  return {
-    slug: decodeURIComponent(segments[2]),
-    username: decodeURIComponent(segments[0]),
-  };
+  const username = decodeURIComponent(segments[0]);
+  // IDN shows a pre-purchase paywall page at /{username}/live/preview/{slug};
+  // the actual live (with the playback URL) is at /{username}/live/{slug}, so
+  // unwrap the "preview" segment to reach the real stream.
+  const isPreview = segments[2] === "preview" && segments.length >= 4;
+  const slug = decodeURIComponent(isPreview ? segments[3] : segments[2]);
+
+  return { slug, username };
 }
 
 export async function getIdnLiveStreamFromUrl(liveUrl: string, cookieHeader?: string): Promise<IdnLiveStream | null> {
-  const { slug } = parseIdnLiveUrl(liveUrl);
-  const liveData = extractNextData(await fetchHtml(liveUrl, cookieHeader));
+  const { slug, username } = parseIdnLiveUrl(liveUrl);
+  // Always fetch the canonical live page so a pasted "preview" URL still works.
+  const pageUrl = buildIdnUrl(username, "live", slug);
+  const liveData = extractNextData(await fetchHtml(pageUrl, cookieHeader));
   const stream = liveData.props?.pageProps?.livestream;
   const playbackUrl = getPlaybackUrl(stream);
 
@@ -140,7 +150,7 @@ export async function getIdnLiveStreamFromUrl(liveUrl: string, cookieHeader?: st
   }
 
   return {
-    pageUrl: liveUrl,
+    pageUrl,
     playbackUrl,
     slug: stream?.slug || slug,
     title: stream?.title,
