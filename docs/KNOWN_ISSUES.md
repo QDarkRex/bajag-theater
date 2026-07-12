@@ -7,6 +7,20 @@ change. Newest/most important first.
 
 ## Open
 
+### Gold runtime verification needed after APT resolver fix
+- **2026-07-12 finding:** IDN Gold uses an Amazon IVS private channel. The `playback_url`
+  embedded in `__NEXT_DATA__` is the bare IVS channel URL and returns 403 without a playback
+  JWT. Browser `/v1/playlist/...` URLs are session-bound and also return 403 when copied to
+  Streamlink/FFmpeg; copying them is a dead end.
+- **Implemented:** Gold streams now call IDN's authenticated
+  `POST /api/v1/apt?streamer_uuid=...&slug=...` endpoint and decrypt its `galaktus` response
+  using the same AES-256-CBC flow as IDN's public frontend bundle. Unit tests cover the APT
+  request, decryption, and trusted IVS URL validation.
+- **Still needed:** verify with a newly exported, still-valid paid session during the next
+  live Gold show. The cookies available after the 2026-07-12 debugging session returned 401
+  from APT even though their JWT `exp` had not passed, consistent with Cognito session
+  invalidation/rotation.
+
 ### IDN cookies rotate constantly (auth is the hard part)
 - **Symptom:** Gold streams need the account cookie, but exported cookies go stale fast; a
   friend observed the token rotating roughly every ~2 seconds while a browser session is
@@ -20,6 +34,10 @@ change. Newest/most important first.
 - **Manual workaround (ok for a single show):** export cookies **fresh right before the
   show**, Save in the UI, then **close/logout that browser** and don't use the account
   elsewhere at the same time (one session = one owner, or they invalidate each other).
+- **Export gotcha found 2026-07-12:** the cookies.txt exporter split the JSON-valued
+  `toggleState` cookie across malformed Netscape rows with an empty cookie name. This made
+  Streamlink fail on `--http-cookie =...`. The parser now rejects invalid/empty cookie names;
+  the important `id_token`, `access_token`, and `session-id` rows remain intact.
 - **Robust fix (not yet built):** auto-refresh. Reuse `idn_auth.py` from the sibling project
   `idn-live-logger` (keeps a persistent logged-in browser, grabs a fresh token/cookies
   headless) on a schedule to overwrite `~/bajag-theater/cookies/cookies` every few minutes.
@@ -69,3 +87,7 @@ change. Newest/most important first.
   `docker run`.
 - **Relying on a one-time static cookie export for long/continuous recording** — dies mid-way
   due to IDN token rotation. Needs the auto-refresh approach instead.
+- **Copying Amazon IVS `/v1/playlist/` or `/v1/segment/` URLs from DevTools** — these are
+  session-bound URLs created after IVS accepts the playback JWT. They return 403 in another
+  client, even on the same Windows device with the same User-Agent. Acquire a fresh JWT from
+  IDN's APT endpoint and use the original channel playback URL instead.

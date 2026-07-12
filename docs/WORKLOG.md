@@ -13,6 +13,20 @@ meaningful change so the next device/agent has continuity. Suggested format:
 
 ---
 
+## 2026-07-12 — Implement IDN Gold Amazon IVS playback authorization
+- Who: Codex with QDarkRex
+- Did: Re-deployed the service on replacement VPS/Tailscale node `100.84.221.74`; reproduced
+  Gold failures end-to-end; traced IDN's current frontend bundle; found the authenticated APT
+  endpoint and AES-256-CBC `galaktus` decryption flow; implemented Gold playback authorization;
+  hardened Netscape cookie parsing against empty-name rows from the exporter.
+- Result: TypeScript clean, Biome clean, 25/25 tests pass. Free-stream resolution remains
+  unchanged. Production APT probe with the post-debug cookie snapshot returned 401, so a real
+  recording with a newly exported paid session is not yet verified. Browser player status was
+  not re-evaluated; direct copied IVS playlist URLs returned 403 by design (session protection).
+- Next: Deploy this commit, export cookies fresh during the next purchased Gold live, and
+  confirm `Starting stream download` plus file growth twice. If APT still returns 401, capture
+  only the APT request-header names and status from DevTools and compare session selection.
+
 ## 2026-07-11 — Set up shared multi-agent workspace
 - Who: Claude (Claude Code) with QDarkRex
 - Did: Added `AGENTS.md`, `CLAUDE.md`, and `docs/` (`DEPLOYMENT.md`, `KNOWN_ISSUES.md`, this

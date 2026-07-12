@@ -86,6 +86,11 @@ holds the subscription. Both formats are accepted:
 Point `COOKIES` at that file, or paste the contents into the **Cookies** box in the web UI
 and click **Save Cookies**.
 
+For `idnliveplus` rooms, the app uses the authenticated IDN APT endpoint to obtain a fresh
+Amazon IVS playback authorization URL. The cookie export must therefore include valid
+`id_token`, `access_token`, and `session-id` cookies. Empty/malformed Netscape cookie rows
+produced by some exporters are ignored.
+
 ## HTTP endpoints
 
 | Method   | Path                      | Purpose                                                        |

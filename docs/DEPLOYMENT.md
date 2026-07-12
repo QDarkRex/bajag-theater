@@ -1,7 +1,7 @@
 # Deployment runbook
 
-Production runs in Docker on the Tailscale node **`100.103.179.11`** (host "caddy"), which
-also runs other containers (`tiktokbot`, `portainer`, `caddy`). Access is Tailscale-only.
+Production runs in Docker on the replacement Tailscale node **`100.84.221.74`** (host
+`caddy-1`). Access is Tailscale-only. The previous `100.103.179.11` VPS was deleted.
 
 > ⚠️ The bundled `docker-compose.yml` requests an **NVIDIA GPU** (`deploy.resources`). This
 > VPS has **no GPU**, so `docker compose up` fails with
@@ -17,7 +17,7 @@ docker build -t theater:latest .
 
 docker run -d --name theater-container --restart always \
   --env-file .env \
-  -p 100.103.179.11:6969:6969 \
+  -p 100.84.221.74:6969:6969 \
   -v "$PWD/cookies:/app/cookies" \
   -v "$PWD/video:/app/video" \
   -v "$PWD/replay:/app/replay" \
@@ -26,9 +26,9 @@ docker run -d --name theater-container --restart always \
 docker logs -f theater-container
 ```
 
-- `-p 100.103.179.11:6969:6969` binds the port to the **Tailscale interface only**, so the
+- `-p 100.84.221.74:6969:6969` binds the port to the **Tailscale interface only**, so the
   service is not exposed to the public internet (it has no auth). Access it from any of your
-  Tailscale devices at `http://100.103.179.11:6969`.
+  Tailscale devices at `http://100.84.221.74:6969`.
 
 ## Redeploy after pulling new code
 
@@ -44,7 +44,7 @@ docker rename theater-container theater-old
 docker stop theater-old
 docker run -d --name theater-container --restart always \
   --env-file .env \
-  -p 100.103.179.11:6969:6969 \
+  -p 100.84.221.74:6969:6969 \
   --volumes-from theater-old \
   theater:latest
 
@@ -84,8 +84,8 @@ Healthy signs in the log: `Server (production) running on port ...`, then either
 ## Playback
 
 - **VLC (works today):** open network stream
-  `http://100.103.179.11:6969/livestream/output.m3u8` (proxied, attaches cookies — best for
-  Gold) or `http://100.103.179.11:6969/livestream/raw` (redirect to the raw IDN URL; fine
+  `http://100.84.221.74:6969/livestream/output.m3u8` (proxied, attaches cookies — best for
+  Gold) or `http://100.84.221.74:6969/livestream/raw` (redirect to the raw IDN URL; fine
   for free / signed-URL streams).
 - **Browser web player:** currently NOT working — see `docs/KNOWN_ISSUES.md`.
 
