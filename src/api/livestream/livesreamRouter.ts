@@ -14,6 +14,7 @@ import { logger } from "@/server";
 
 export const livestreamRegistry = new OpenAPIRegistry();
 export const livesreamRouter: Router = express.Router();
+const IDN_ORIGIN = "https://www.idn.app";
 
 livestreamRegistry.registerPath({
   method: "get",
@@ -58,6 +59,10 @@ async function buildProxyRequestHeaders(targetUrl: string): Promise<HeadersInit>
   const trusted = !!targetHost && (isIdnHost(targetHost) || targetHost === streamHost);
 
   if (trusted) {
+    if (targetHost.endsWith(".live-video.net")) {
+      headers.origin = IDN_ORIGIN;
+      headers.referer = `${IDN_ORIGIN}/`;
+    }
     const cookieHeader = await readCookieHeader();
     if (cookieHeader) {
       headers.cookie = cookieHeader;

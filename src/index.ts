@@ -11,6 +11,7 @@ import { app, logger } from "@/server";
 const HLS_CHECK_TIMEOUT_MS = 10000;
 const LIVESTREAM_CHECK_INTERVAL_MS = 15 * 1000;
 const STREAMLINK_RETRY_DELAY_MS = 1500;
+const IDN_ORIGIN = "https://www.idn.app";
 
 const { NODE_ENV, HOST, PORT } = env;
 const server = app.listen(env.PORT, () => {
@@ -48,6 +49,8 @@ async function isPlaybackUrlReachable(url: string, cookieHeader: string) {
   const timeout = setTimeout(() => controller.abort(), HLS_CHECK_TIMEOUT_MS);
   const headers: HeadersInit = {
     accept: "application/vnd.apple.mpegurl,application/x-mpegurl,*/*",
+    origin: IDN_ORIGIN,
+    referer: `${IDN_ORIGIN}/`,
     "user-agent": "Mozilla/5.0 (compatible; bajag-theater/1.0)",
   };
 
@@ -96,6 +99,10 @@ async function downloadStream(
 
       const args: string[] = [
         "--hls-live-restart",
+        "--http-header",
+        `Origin=${IDN_ORIGIN}`,
+        "--http-header",
+        `Referer=${IDN_ORIGIN}/`,
         "-o",
         outputFile,
         ...streamlinkCookieArgs(cookieHeader),
