@@ -2,6 +2,7 @@ import { createDecipheriv } from "node:crypto";
 
 const IDN_BASE_URL = "https://www.idn.app";
 const IDN_API_BASE_URL = "https://api.idn.app";
+const IDN_WEB_API_KEY = "123f4c4e-6ce1-404d-8786-d17e46d65b5c";
 const REQUEST_TIMEOUT_MS = 15000;
 const IDN_APT_DECRYPTION_KEY = "8dDR1neD37MwogoMymJS0ExltZ5vH4SU";
 const COOKIE_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
@@ -164,6 +165,7 @@ async function fetchGoldPlaybackUrl(stream: IdnLivestream, pageUrl: string, cook
         referer: pageUrl,
         "session-id": sessionId,
         "user-agent": "Mozilla/5.0 (compatible; bajag-theater/1.0)",
+        "x-api-key": IDN_WEB_API_KEY,
         "x-request-id": `${sessionId}_${Date.now()}`,
       },
       signal: controller.signal,
@@ -171,11 +173,12 @@ async function fetchGoldPlaybackUrl(stream: IdnLivestream, pageUrl: string, cook
     if (!response.ok) {
       throw new Error(`IDN playback authorization failed with status ${response.status}.`);
     }
-    const body = (await response.json()) as { galaktus?: string };
-    if (!body.galaktus) {
+    const body = (await response.json()) as { data?: { galaktus?: string }; galaktus?: string };
+    const galaktus = body.data?.galaktus ?? body.galaktus;
+    if (!galaktus) {
       throw new Error("IDN playback authorization did not return galaktus.");
     }
-    return validateAuthorizedPlaybackUrl(decryptIdnAptPayload(body.galaktus));
+    return validateAuthorizedPlaybackUrl(decryptIdnAptPayload(galaktus));
   } finally {
     clearTimeout(timeout);
   }

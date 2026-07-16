@@ -218,7 +218,7 @@ describe("IDN Live resolver", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response(detailHtml))
-      .mockResolvedValueOnce(Response.json({ galaktus: encryptAptFixture(authorizedUrl) }));
+      .mockResolvedValueOnce(Response.json({ status: 200, data: { galaktus: encryptAptFixture(authorizedUrl) } }));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
@@ -236,6 +236,7 @@ describe("IDN Live resolver", () => {
           authorization: "Bearer id-fixture",
           "content-type": "application/json",
           "session-id": "session-fixture",
+          "x-api-key": "123f4c4e-6ce1-404d-8786-d17e46d65b5c",
           "x-request-id": expect.stringMatching(/^session-fixture_\d+$/),
         }),
       }),
