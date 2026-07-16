@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, stat, writeFile } from "node:fs/promises";
 
 import { getFormattedDate } from "@/common/utils/date";
 import { env } from "@/common/utils/envConfig";
@@ -10,8 +10,10 @@ import { app, logger } from "@/server";
 
 const HLS_CHECK_TIMEOUT_MS = 10000;
 const LIVESTREAM_CHECK_INTERVAL_MS = 15 * 1000;
-const STREAMLINK_RETRY_DELAY_MS = 1500;
+const RECORDING_STALL_CHECK_INTERVAL_MS = 15 * 1000;
+const RECORDING_STALL_TIMEOUT_MS = 45 * 1000;
 const IDN_ORIGIN = "https://www.idn.app";
+let lastRecordedSlug = "";
 
 const { NODE_ENV, HOST, PORT } = env;
 const server = app.listen(env.PORT, () => {
@@ -85,85 +87,103 @@ async function downloadStream(
   quality: string,
   outputFile: string,
   generation: number,
-  maxRetries = 3,
+  restartFromBeginning: boolean,
 ): Promise<void> {
-  let attempts = 0;
   const cookieHeader = await readCookieHeader();
 
   await writeFile("isDownloading", "true");
 
   try {
-    while (attempts < maxRetries && generation === getStreamGeneration()) {
-      attempts++;
-      logger.info(`Starting stream download attempt ${attempts}`);
+    logger.info(
+      `Starting stream download${restartFromBeginning ? " from the available DVR window" : " from live edge"}`,
+    );
 
-      const args: string[] = [
-        "--hls-live-restart",
-        "--http-header",
-        `Origin=${IDN_ORIGIN}`,
-        "--http-header",
-        `Referer=${IDN_ORIGIN}/`,
-        "-o",
-        outputFile,
-        ...streamlinkCookieArgs(cookieHeader),
-        url,
-        quality,
-      ];
+    const args: string[] = [
+      ...(restartFromBeginning ? ["--hls-live-restart"] : []),
+      "--http-header",
+      `Origin=${IDN_ORIGIN}`,
+      "--http-header",
+      `Referer=${IDN_ORIGIN}/`,
+      "-o",
+      outputFile,
+      ...streamlinkCookieArgs(cookieHeader),
+      url,
+      quality,
+    ];
 
-      const commandStr = `streamlink ${args.map((arg) => (arg.includes("=") ? '"[redacted]"' : `"${arg}"`)).join(" ")}`;
-      logger.info(`Executing command:${commandStr}`);
+    const commandStr = `streamlink ${args.map((arg) => (arg.includes("=") ? '"[redacted]"' : `"${arg}"`)).join(" ")}`;
+    logger.info(`Executing command:${commandStr}`);
 
-      const proc = spawn("streamlink", args);
-      setActiveStreamProcess(proc);
+    const proc = spawn("streamlink", args);
+    setActiveStreamProcess(proc);
+    let lastSize = -1;
+    let lastGrowthAt = Date.now();
+    let stalled = false;
 
-      proc.stdout.on("data", (data: Buffer) => {
-        logger.info(`Progress: ${data.toString()}`);
+    const watchdog = setInterval(async () => {
+      try {
+        const currentSize = (await stat(outputFile)).size;
+        if (currentSize > lastSize) {
+          lastSize = currentSize;
+          lastGrowthAt = Date.now();
+          return;
+        }
+
+        if (Date.now() - lastGrowthAt >= RECORDING_STALL_TIMEOUT_MS && !proc.killed) {
+          stalled = true;
+          logger.warn("Recording file stopped growing. Recycling the IVS playback session.");
+          proc.kill("SIGTERM");
+        }
+      } catch {
+        if (Date.now() - lastGrowthAt >= RECORDING_STALL_TIMEOUT_MS && !proc.killed) {
+          stalled = true;
+          logger.warn("Recording file was not created in time. Recycling the IVS playback session.");
+          proc.kill("SIGTERM");
+        }
+      }
+    }, RECORDING_STALL_CHECK_INTERVAL_MS);
+    watchdog.unref();
+
+    proc.stdout.on("data", (data: Buffer) => {
+      logger.info(`Progress: ${data.toString()}`);
+    });
+
+    proc.stderr.on("data", (data: Buffer) => {
+      logger.error(`Streamlink error output: ${data.toString()}`);
+    });
+
+    const exitCode: number = await new Promise((resolve) => {
+      let settled = false;
+      const settle = (code: number) => {
+        if (!settled) {
+          settled = true;
+          resolve(code);
+        }
+      };
+
+      proc.on("error", (error) => {
+        logger.error({ error }, "Failed to start Streamlink.");
+        settle(1);
       });
 
-      proc.stderr.on("data", (data: Buffer) => {
-        logger.error(`Streamlink error output: ${data.toString()}`);
+      proc.on("close", (code) => {
+        settle(code ?? 1);
       });
+    });
+    clearInterval(watchdog);
+    clearActiveStreamProcess(proc);
 
-      const exitCode: number = await new Promise((resolve) => {
-        let settled = false;
-        const settle = (code: number) => {
-          if (!settled) {
-            settled = true;
-            resolve(code);
-          }
-        };
-
-        proc.on("error", (error) => {
-          logger.error({ error }, "Failed to start Streamlink.");
-          settle(1);
-        });
-
-        proc.on("close", (code) => {
-          settle(code ?? 1);
-        });
-      });
-      clearActiveStreamProcess(proc);
-
-      if (generation !== getStreamGeneration()) {
-        logger.info("Stream refresh requested. Stopping current download attempt.");
-        break;
-      }
-
-      if (exitCode === 0) {
-        logger.info("Stream download completed successfully.");
-        await writeFile("url", "");
-        break;
-      }
-
-      logger.error(`Download failed with exit code ${exitCode}. Retrying in ${STREAMLINK_RETRY_DELAY_MS}ms...`);
-      if (attempts < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, STREAMLINK_RETRY_DELAY_MS));
-      }
+    if (generation !== getStreamGeneration()) {
+      logger.info("Stream refresh requested. Stopping current download attempt.");
+      return;
     }
 
-    if (attempts >= maxRetries && generation === getStreamGeneration()) {
-      logger.error("Exceeded maximum retry attempts. Recording failed; keeping the playback URL available.");
-    }
+    logger[exitCode === 0 && !stalled ? "info" : "warn"](
+      exitCode === 0 && !stalled
+        ? "Stream download completed. Watching IDN for the next live stream."
+        : `Stream download stopped with exit code ${exitCode}. A fresh IVS session will be requested automatically.`,
+    );
+    await writeFile("url", "");
   } finally {
     if (generation === getStreamGeneration()) {
       await writeFile("isDownloading", "false");
@@ -178,6 +198,7 @@ async function checkAndDownloadLivestream() {
   const isDownloading = (await readFile("isDownloading", "utf8").catch(() => "")) === "true";
   const cookieHeader = await readCookieHeader();
   let url = (await readFile("url", "utf8").catch(() => "")).trim();
+  let restartFromBeginning = false;
 
   if (url && !isDownloading && !(await isPlaybackUrlReachable(url, cookieHeader))) {
     logger.info("Stored IDN playback URL is stale. Fetching a fresh stream URL.");
@@ -208,6 +229,8 @@ async function checkAndDownloadLivestream() {
       logger.info(`IDN Live stream found: ${stream.title || stream.slug} (${stream.pageUrl})`);
       await writeFile("url", stream.playbackUrl);
       url = stream.playbackUrl;
+      restartFromBeginning = stream.slug !== lastRecordedSlug;
+      lastRecordedSlug = stream.slug;
     } catch (error) {
       logger.error({ error }, "Error fetching IDN Live stream.");
       return;
@@ -218,7 +241,7 @@ async function checkAndDownloadLivestream() {
 
   // Start download if not already downloading
   if (!isDownloading) {
-    await downloadStream(url, "best", output, getStreamGeneration(), 20);
+    await downloadStream(url, "best", output, getStreamGeneration(), restartFromBeginning);
   }
 }
 
