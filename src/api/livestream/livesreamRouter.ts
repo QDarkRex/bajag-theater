@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createApiResponse } from "@/api-docs/openAPIResponseBuilders";
 import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
-import { parseCookieFile } from "@/common/utils/idnLive";
+import { getIdnLiveStream, getIdnLiveStreamFromUrl, parseCookieFile } from "@/common/utils/idnLive";
 import { getCookieStatus, getRuntimeConfig, saveCookieFile, saveRuntimeConfig } from "@/common/utils/runtimeConfig";
 import { requestStreamRefresh } from "@/common/utils/streamState";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
@@ -32,8 +32,24 @@ async function readCookieHeader() {
   return parseCookieFile(content);
 }
 
+async function getPlayerPlaybackUrl(fallbackUrl: string) {
+  const runtimeConfig = await getRuntimeConfig();
+  const cookieHeader = await readCookieHeader();
+  const directLiveUrl = runtimeConfig.idnLiveUrl.trim();
+  const idnUsername = runtimeConfig.idnUsername.trim();
+  const stream = directLiveUrl
+    ? await getIdnLiveStreamFromUrl(directLiveUrl, cookieHeader)
+    : await getIdnLiveStream(idnUsername, cookieHeader);
+
+  return stream?.playbackUrl || fallbackUrl;
+}
+
 function isIdnHost(hostname: string) {
   return hostname === "idn.app" || hostname.endsWith(".idn.app");
+}
+
+function isIvsHost(hostname: string) {
+  return hostname === "live-video.net" || hostname.endsWith(".live-video.net");
 }
 
 function hostnameOf(url: string): string | null {
@@ -44,10 +60,9 @@ function hostnameOf(url: string): string | null {
   }
 }
 
-// Gold segments can require the account cookie, but the /proxy endpoint accepts
-// any public URL, so blindly forwarding cookies would leak the IDN session to an
-// arbitrary host. Only attach the cookie to IDN's own hosts or to the host of the
-// stream we are currently serving.
+// The /proxy endpoint accepts any public URL, so blindly forwarding IDN cookies
+// would leak the account session. Cookies stay on IDN hosts; IVS authorization
+// uses signed URLs plus the IDN Origin header across its playlist/CDN hosts.
 async function buildProxyRequestHeaders(targetUrl: string): Promise<HeadersInit> {
   const headers: HeadersInit = {
     accept: "application/vnd.apple.mpegurl,application/x-mpegurl,video/mp2t,*/*",
@@ -56,16 +71,19 @@ async function buildProxyRequestHeaders(targetUrl: string): Promise<HeadersInit>
 
   const targetHost = hostnameOf(targetUrl);
   const streamHost = hostnameOf(await getM3u8());
-  const trusted = !!targetHost && (isIdnHost(targetHost) || targetHost === streamHost);
+  const ivsPlayback = !!targetHost && !!streamHost && isIvsHost(targetHost) && isIvsHost(streamHost);
+  const trusted = !!targetHost && (isIdnHost(targetHost) || targetHost === streamHost || ivsPlayback);
 
   if (trusted) {
-    if (targetHost.endsWith(".live-video.net")) {
+    if (ivsPlayback) {
       headers.origin = IDN_ORIGIN;
       headers.referer = `${IDN_ORIGIN}/`;
     }
-    const cookieHeader = await readCookieHeader();
-    if (cookieHeader) {
-      headers.cookie = cookieHeader;
+    if (isIdnHost(targetHost)) {
+      const cookieHeader = await readCookieHeader();
+      if (cookieHeader) {
+        headers.cookie = cookieHeader;
+      }
     }
   }
 
@@ -273,8 +291,12 @@ livesreamRouter.get("/output.m3u8", async (_req, res) => {
   const url = await getM3u8();
   try {
     if (url) {
-      logger.info(`URL already fetched (${url}). Skipping`);
-      return await proxyHlsResource(url, res);
+      // Amazon IVS playback tokens are single-use. The recorder consumes its
+      // token when it starts, so each player session must receive a newly
+      // authorized URL instead of reusing the recorder's stored URL.
+      const playerUrl = await getPlayerPlaybackUrl(url);
+      logger.info("Fresh IDN playback URL acquired for player.");
+      return await proxyHlsResource(playerUrl, res);
     }
 
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No livestream URL!");
