@@ -20,10 +20,12 @@ meaningful change so the next device/agent has continuity. Suggested format:
   private `http://192.168.60.10:6969` proxy. Changed manifest rewriting to same-origin
   relative proxy URLs and corrected the UI's VLC link to use public/LAN origin plus
   `/livestream/output.m3u8`.
-- Result: Unit coverage added for relative playlist, segment, and URI-attribute rewrites.
-  Deployment/runtime verification is recorded after the live rebuild below.
-- Next: Confirm public VLC and browser playback after deploying to `x99`; recording recovery
-  should continue in a new `.ts` part after the container restart.
+- Result: TypeScript and production build clean; 26/26 tests pass. Deployed commit `40be6d2`
+  to `x99` during the live show. Recording automatically resumed in a new growing `.ts`
+  part. Public master playlist, child playlist, and a real media segment all returned HTTP
+  200 with zero absolute/private HTTP references; the deployed page shows the corrected VLC
+  URL.
+- Next: Keep the pre-fix container stopped as a temporary rollback until the show is over.
 
 ## 2026-07-12 — Implement IDN Gold Amazon IVS playback authorization
 - Who: Codex with QDarkRex
