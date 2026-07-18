@@ -43,3 +43,32 @@ export function rewriteManifest(manifest: string, baseUrl: string) {
     })
     .join("\n");
 }
+
+export function selectManifestVariant(manifest: string, targetHeight: number): string | null {
+  const lines = manifest.split("\n");
+  const output: string[] = [];
+  let selected = false;
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (!line.trim().startsWith("#EXT-X-STREAM-INF:")) {
+      output.push(line);
+      continue;
+    }
+
+    let uriIndex = index + 1;
+    while (uriIndex < lines.length && (!lines[uriIndex].trim() || lines[uriIndex].trim().startsWith("#"))) {
+      uriIndex++;
+    }
+
+    const height = Number(line.match(/RESOLUTION=\d+x(\d+)/i)?.[1]);
+    if (height === targetHeight && uriIndex < lines.length) {
+      output.push(...lines.slice(index, uriIndex + 1));
+      selected = true;
+    }
+
+    index = Math.max(index, uriIndex);
+  }
+
+  return selected ? output.join("\n") : null;
+}

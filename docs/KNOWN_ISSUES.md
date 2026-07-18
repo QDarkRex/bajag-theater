@@ -56,6 +56,8 @@ change. Newest/most important first.
 - **Fix:** Manifest resources now use relative `/livestream/proxy/...` URLs, preserving the
   caller's LAN or public HTTPS origin. The UI's VLC field now uses
   `window.location.origin/livestream/output.m3u8` instead of a malformed `/raw` URL.
+- **Quality selection:** The staged follow-up adds Auto plus fixed 1080p/720p/480p/360p/160p
+  endpoints. Web and VLC use the same selector; the recorder remains fixed to `best`.
 
 ### `docker compose up` fails: `could not select device driver "nvidia"`
 - **Cause:** `docker-compose.yml` reserves an NVIDIA GPU; the VPS has none.

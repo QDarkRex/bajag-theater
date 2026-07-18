@@ -9,7 +9,7 @@ import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import express, { type Response, type Router } from "express";
 import { z } from "zod";
 
-import { rewriteManifest } from "@/common/utils/hlsManifest";
+import { rewriteManifest, selectManifestVariant } from "@/common/utils/hlsManifest";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
 import { logger } from "@/server";
 
@@ -155,7 +155,7 @@ function isManifestResponse(targetUrl: string, response: globalThis.Response) {
   return targetUrl.includes(".m3u8") || contentType.includes("mpegurl") || contentType.includes("vnd.apple");
 }
 
-async function proxyHlsResource(targetUrl: string, res: Response) {
+async function proxyHlsResource(targetUrl: string, res: Response, targetHeight?: number) {
   const response = await fetch(targetUrl, {
     headers: await buildProxyRequestHeaders(targetUrl),
   });
@@ -167,7 +167,11 @@ async function proxyHlsResource(targetUrl: string, res: Response) {
   }
 
   if (isManifestResponse(targetUrl, response)) {
-    const manifest = await response.text();
+    const sourceManifest = await response.text();
+    const manifest = targetHeight ? selectManifestVariant(sourceManifest, targetHeight) : sourceManifest;
+    if (!manifest) {
+      return res.status(404).send(`The ${targetHeight}p stream is not available.`);
+    }
     const rewrittenManifest = rewriteManifest(manifest, targetUrl);
     return res
       .status(200)
@@ -245,7 +249,7 @@ livesreamRouter.post("/refresh", async (_req, res) => {
   return handleServiceResponse(serviceResponse, res);
 });
 
-livesreamRouter.get("/output.m3u8", async (_req, res) => {
+async function servePlayerManifest(res: Response, targetHeight?: number) {
   const url = await getM3u8();
   try {
     if (url) {
@@ -253,8 +257,12 @@ livesreamRouter.get("/output.m3u8", async (_req, res) => {
       // token when it starts, so each player session must receive a newly
       // authorized URL instead of reusing the recorder's stored URL.
       const playerUrl = await getPlayerPlaybackUrl(url);
-      logger.info("Fresh IDN playback URL acquired for player.");
-      return await proxyHlsResource(playerUrl, res);
+      logger.info(
+        targetHeight
+          ? `Fresh IDN playback URL acquired for ${targetHeight}p player.`
+          : "Fresh IDN playback URL acquired for player.",
+      );
+      return await proxyHlsResource(playerUrl, res, targetHeight);
     }
 
     const serviceResponse = ServiceResponse.failure("Something went wrong", "No livestream URL!");
@@ -264,7 +272,17 @@ livesreamRouter.get("/output.m3u8", async (_req, res) => {
     const serviceResponse = ServiceResponse.failure("Something went wrong", null);
     return handleServiceResponse(serviceResponse, res);
   }
+}
+
+livesreamRouter.get("/output.m3u8", async (_req, res) => {
+  return await servePlayerManifest(res);
 });
+
+for (const height of [1080, 720, 480, 360, 160]) {
+  livesreamRouter.get(`/${height}p.m3u8`, async (_req, res) => {
+    return await servePlayerManifest(res, height);
+  });
+}
 
 livesreamRouter.get("/raw", async (_req, res) => {
   const url = await getM3u8();

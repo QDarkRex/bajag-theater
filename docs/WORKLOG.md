@@ -13,6 +13,17 @@ meaningful change so the next device/agent has continuity. Suggested format:
 
 ---
 
+## 2026-07-18 — Add web and VLC quality selection
+- Who: Codex with QDarkRex
+- Did: Added Auto plus fixed 1080p60, 720p60, 480p30, 360p30, and 160p30 choices to the
+  web UI. The same selector updates the copyable VLC URL. Added dedicated quality endpoints
+  that issue a fresh IVS session and reduce its master playlist to exactly one resolution;
+  recorder behavior remains `best` and independent.
+- Result: TypeScript and production build clean; 28/28 tests pass. The selector was also
+  exercised against the active IVS master from `x99`: all five requested heights produced
+  exactly one matching variant. Intentionally not deployed during the active show.
+- Next: Deploy after the show, then verify one fixed-quality URL in VLC and the browser UI.
+
 ## 2026-07-18 — Fix public HTTPS HLS playback
 - Who: Codex with QDarkRex
 - Did: Reproduced the public browser failure during the live `Pajama Drive` show on `x99`.

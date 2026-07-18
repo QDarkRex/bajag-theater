@@ -29,6 +29,17 @@
       <video-js id=vid1 class="flex-1 vjs-default-skin video-js vjs-fluid rounded-md" controls>
         <source src="/livestream/output.m3u8" type="application/x-mpegURL">
       </video-js>
+      <label class="form-control mt-3">
+        <span class="label-text">Quality (Web & VLC)</span>
+        <select id="stream_quality" class="select select-bordered w-full md:max-w-xs">
+          <option value="auto">Auto (Recommended)</option>
+          <option value="1080p">1080p60</option>
+          <option value="720p">720p60</option>
+          <option value="480p">480p30</option>
+          <option value="360p">360p30</option>
+          <option value="160p">160p30</option>
+        </select>
+      </label>
       <div class="py-2 flex flex-col md:flex-row items-center gap-2">
         <p class="whitespace-nowrap">Lag? coba gunakan link ini di VLC:
         <div class="join flex-1">
@@ -133,8 +144,18 @@
   <script src="/js/video.min.js"></script>
   <script>
     var vlc_link = document.querySelector("#vlc_link");
+    var streamQuality = document.querySelector("#stream_quality");
     var currentLocation = window.location;
-    vlc_link.value = `${currentLocation.origin}/livestream/output.m3u8`;
+
+    function selectedStreamPath() {
+      return streamQuality.value === "auto" ? "output.m3u8" : `${streamQuality.value}.m3u8`;
+    }
+
+    function updateVlcLink() {
+      vlc_link.value = `${currentLocation.origin}/livestream/${selectedStreamPath()}`;
+    }
+
+    updateVlcLink();
     var player = videojs('vid1', {
       responsive: true
     });
@@ -202,7 +223,7 @@
 
     function reloadPlayer() {
       player.src({
-        src: `/livestream/output.m3u8?t=${Date.now()}`,
+        src: `/livestream/${selectedStreamPath()}?t=${Date.now()}`,
         type: "application/x-mpegURL",
       });
 
@@ -211,6 +232,11 @@
         nextPlayPromise.catch(() => {});
       }
     }
+
+    streamQuality.addEventListener("change", () => {
+      updateVlcLink();
+      reloadPlayer();
+    });
 
     function schedulePlayerReload() {
       window.setTimeout(reloadPlayer, 16000);
