@@ -13,6 +13,20 @@ meaningful change so the next device/agent has continuity. Suggested format:
 
 ---
 
+## 2026-07-18 — Add server-side login for web and VLC
+- Who: Codex with QDarkRex
+- Did: Added a static login page backed by real server-side authentication. Browser access
+  uses a signed, expiring `HttpOnly` session cookie; VLC and other HLS clients can use HTTP
+  Basic authentication. The middleware protects UI, API, manifests, proxy segments, and
+  recordings while leaving `/health-check` public. Added login rate limiting, constant-time
+  credential checks, safe redirect handling, fail-closed validation for partial config, and
+  restricted Express proxy trust to the single directly connected reverse proxy.
+- Result: Credentials are environment-only and are not committed to Git. Unit coverage was
+  added for redirects, login success/failure, protected HLS, VLC Basic auth, and invalid
+  configuration. Not deployed to `x99` during the active show.
+- Next: After the show, set private auth values on the target host, deploy, then verify one
+  browser login and one VLC prompt through the public HTTPS domain.
+
 ## 2026-07-18 — Add web and VLC quality selection
 - Who: Codex with QDarkRex
 - Did: Added Auto plus fixed 1080p60, 720p60, 480p30, 360p30, and 160p30 choices to the

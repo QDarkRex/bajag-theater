@@ -13,13 +13,20 @@ import { watchRouter } from "@/api/watch/watchRouter";
 import errorHandler from "@/common/middleware/errorHandler";
 import rateLimiter from "@/common/middleware/rateLimiter";
 import requestLogger from "@/common/middleware/requestLogger";
+import { createWebAuth } from "@/common/middleware/webAuth";
 import { env } from "@/common/utils/envConfig";
 
 const logger = pino({ name: "server start" });
 const app: Express = express();
+const webAuth = createWebAuth({
+  username: env.AUTH_USERNAME,
+  password: env.AUTH_PASSWORD,
+  sessionSecret: env.AUTH_SESSION_SECRET,
+  sessionTtlSeconds: env.AUTH_SESSION_TTL_SECONDS,
+});
 
-// Set the application to trust the reverse proxy
-app.set("trust proxy", true);
+// Trust only the directly connected reverse proxy, not arbitrary forwarded headers.
+app.set("trust proxy", 1);
 
 // Middlewares
 app.use(express.json());
@@ -40,6 +47,8 @@ app.use(requestLogger);
 
 // Routes
 app.use("/health-check", healthCheckRouter);
+app.use(webAuth.router);
+app.use(webAuth.middleware);
 app.use("/schedule", scheduleRouter);
 app.use("/livestream", livesreamRouter);
 app.use("/replay", replayRouter);

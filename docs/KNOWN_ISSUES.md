@@ -48,6 +48,16 @@ change. Newest/most important first.
 
 ## Resolved
 
+### Public player and settings had no access control
+- **Risk:** Anyone who knew the public URL could open the live stream, recordings, settings,
+  and cookie update endpoint.
+- **Fix:** Optional server-side authentication now protects the UI, APIs, HLS manifests,
+  proxy segments, and recordings. Browsers receive an `HttpOnly` signed session; VLC uses
+  HTTP Basic authentication with the same credentials. `/health-check` remains public.
+- **Deployment requirement:** Set all three `AUTH_USERNAME`, `AUTH_PASSWORD`, and a unique
+  `AUTH_SESSION_SECRET` of at least 32 characters in the server's private `.env`. A partial
+  configuration deliberately stops startup.
+
 ### Public HTTPS VLC/web player did not load
 - **2026-07-18 cause:** HLS manifests embedded the configured absolute `PROXY_URL`. On `x99`
   that was `http://192.168.60.10:6969`, so remote HTTPS clients received private,

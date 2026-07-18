@@ -70,6 +70,10 @@ All configuration is via environment variables (see `.env.example`). The most im
 | `REPLAY_DIR`   | `${PWD}/replay`                            | Where recordings are stored / served from.                                  |
 | `HW_ACCEL`     | `VAAPI`                                     | Hardware transcode backend (`VAAPI` or `NVENC`).                            |
 | `FFMPEG_PATH`  | `/usr/bin/ffmpeg`                          | Path to the ffmpeg binary.                                                   |
+| `AUTH_USERNAME` | *(empty)*                                 | Web and VLC username; auth is disabled only when all auth values are empty.  |
+| `AUTH_PASSWORD` | *(empty)*                                 | Web and VLC password. Keep it only in the server's private `.env`.           |
+| `AUTH_SESSION_SECRET` | *(empty)*                            | Secret of at least 32 characters used to sign browser sessions.             |
+| `AUTH_SESSION_TTL_SECONDS` | `43200`                         | Browser login lifetime in seconds (12 hours by default).                     |
 
 `IDN_USERNAME`, `IDN_LIVE_URL`, and the cookies can also be changed at runtime from the
 web UI at `/` — those overrides are persisted to `runtime-config.json` next to the cookies
@@ -108,6 +112,26 @@ produced by some exporters are ignored.
 | GET      | `/watch/*`                | HTML player page for a recording.                             |
 | GET      | `/schedule`               | JKT48 theater schedule (scraped from jkt48.com).              |
 
+## Web and VLC login
+
+Set all three of `AUTH_USERNAME`, `AUTH_PASSWORD`, and `AUTH_SESSION_SECRET` to enable
+authentication. Generate a different, private session secret for each deployment:
+
+```bash
+openssl rand -hex 32
+```
+
+The web page redirects to `/login` and creates an `HttpOnly`, same-site browser session
+after a successful login. VLC uses HTTP Basic authentication: open the desired HLS URL
+(for example `/livestream/output.m3u8`) and enter the same username and password when VLC
+prompts. Use HTTPS for any internet-facing deployment. `/health-check` remains public for
+container and reverse-proxy monitoring; all player, segment, recording, and settings routes
+are protected.
+
+Authentication is disabled for backwards compatibility only when all three values are
+empty. Supplying a partial configuration, or a session secret shorter than 32 characters,
+stops startup instead of accidentally exposing the service.
+
 ## Security notes
 
 - The `/livestream/proxy/*` endpoint only proxies public `http(s)` targets; requests to
@@ -115,8 +139,8 @@ produced by some exporters are ignored.
   endpoint `169.254.169.254`) are refused so it cannot be used as an SSRF relay.
 - The `/replay` file endpoints confine every path to the `replay/` directory, so they
   cannot be used to read arbitrary files on the host.
-- Keep the service behind a trusted reverse proxy / on a private network — it exposes your
-  IDN account's stream and has no authentication of its own.
+- Enable the built-in login for any shared or internet-facing deployment, and terminate
+  HTTPS at a trusted reverse proxy. Do not commit the real password or session secret.
 
 ## Development
 

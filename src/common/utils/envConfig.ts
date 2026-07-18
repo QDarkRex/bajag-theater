@@ -44,4 +44,8 @@ export const env = cleanEnv(process.env, {
   PROXY_URL: str({ default: "http://localhost:6969/livestream/proxy" }),
   IDN_USERNAME: str({ default: "jkt48-official" }),
   IDN_LIVE_URL: str({ default: "" }),
+  AUTH_USERNAME: str({ default: "" }),
+  AUTH_PASSWORD: str({ default: "" }),
+  AUTH_SESSION_SECRET: str({ default: "" }),
+  AUTH_SESSION_TTL_SECONDS: num({ default: 43200 }),
 });
