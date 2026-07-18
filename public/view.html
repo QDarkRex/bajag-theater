@@ -134,7 +134,7 @@
   <script>
     var vlc_link = document.querySelector("#vlc_link");
     var currentLocation = window.location;
-    vlc_link.value = `${currentLocation.protocol}//${currentLocation.hostname}:${currentLocation.port}/livestream/raw`;
+    vlc_link.value = `${currentLocation.origin}/livestream/output.m3u8`;
     var player = videojs('vid1', {
       responsive: true
     });

@@ -9,6 +9,7 @@ import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import express, { type Response, type Router } from "express";
 import { z } from "zod";
 
+import { rewriteManifest } from "@/common/utils/hlsManifest";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
 import { logger } from "@/server";
 
@@ -96,17 +97,6 @@ async function clearCurrentStream() {
   await writeFile("isDownloading", "false");
 }
 
-function getProxyExtension(targetUrl: string) {
-  const pathname = new URL(targetUrl).pathname;
-  const match = pathname.match(/\.[a-z0-9]+$/i);
-  return match?.[0] ?? "";
-}
-
-function toProxyUrl(targetUrl: string) {
-  const encodedUrl = Buffer.from(targetUrl).toString("base64url");
-  return `${env.PROXY_URL}/${encodedUrl}${getProxyExtension(targetUrl)}`;
-}
-
 // Reject hosts that point back at the machine running this service or at a
 // private network. Without this the /proxy endpoint is an open relay: a client
 // could ask the server to fetch internal services or the cloud metadata
@@ -158,38 +148,6 @@ function decodeProxyTarget(proxyPath: string) {
   }
 
   return targetUrl;
-}
-
-function resolveProxyUrl(uri: string, baseUrl: string) {
-  if (uri.startsWith("data:")) {
-    return uri;
-  }
-
-  return toProxyUrl(new URL(uri, baseUrl).toString());
-}
-
-function rewriteManifest(manifest: string, baseUrl: string) {
-  return manifest
-    .split("\n")
-    .map((line) => {
-      const trimmedLine = line.trim();
-
-      if (!trimmedLine) {
-        return line;
-      }
-
-      if (trimmedLine.startsWith("#EXT-X-PREFETCH:")) {
-        const [prefix, uri] = line.split(/:(.+)/);
-        return `${prefix}:${resolveProxyUrl(uri, baseUrl)}`;
-      }
-
-      if (trimmedLine.startsWith("#")) {
-        return line.replace(/URI="([^"]+)"/g, (_match, uri: string) => `URI="${resolveProxyUrl(uri, baseUrl)}"`);
-      }
-
-      return resolveProxyUrl(trimmedLine, baseUrl);
-    })
-    .join("\n");
 }
 
 function isManifestResponse(targetUrl: string, response: globalThis.Response) {

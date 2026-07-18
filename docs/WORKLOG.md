@@ -13,6 +13,18 @@ meaningful change so the next device/agent has continuity. Suggested format:
 
 ---
 
+## 2026-07-18 — Fix public HTTPS HLS playback
+- Who: Codex with QDarkRex
+- Did: Reproduced the public browser failure during the live `Pajama Drive` show on `x99`.
+  The public master manifest returned HTTP 200 but rewrote every child resource to the
+  private `http://192.168.60.10:6969` proxy. Changed manifest rewriting to same-origin
+  relative proxy URLs and corrected the UI's VLC link to use public/LAN origin plus
+  `/livestream/output.m3u8`.
+- Result: Unit coverage added for relative playlist, segment, and URI-attribute rewrites.
+  Deployment/runtime verification is recorded after the live rebuild below.
+- Next: Confirm public VLC and browser playback after deploying to `x99`; recording recovery
+  should continue in a new `.ts` part after the container restart.
+
 ## 2026-07-12 — Implement IDN Gold Amazon IVS playback authorization
 - Who: Codex with QDarkRex
 - Did: Re-deployed the service on replacement VPS/Tailscale node `100.84.221.74`; reproduced

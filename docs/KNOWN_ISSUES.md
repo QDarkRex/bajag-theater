@@ -44,16 +44,18 @@ change. Newest/most important first.
   The app re-reads the cookie file each 15s cycle, so it always has a live cookie. Requires a
   dedicated single-owner IDN account.
 
-### Browser web player doesn't play
-- **Symptom:** `/livestream/raw` and `/livestream/output.m3u8` work in VLC, but the built-in
-  web player at `/` does not play.
-- **Status:** Deprioritized (VLC is the working path). Likely a front-end issue in
-  `public/view.html` / video.js or CSP, not the stream itself (the manifest/segments are
-  fine — VLC proves it). Not yet diagnosed.
-
 ---
 
 ## Resolved
+
+### Public HTTPS VLC/web player did not load
+- **2026-07-18 cause:** HLS manifests embedded the configured absolute `PROXY_URL`. On `x99`
+  that was `http://192.168.60.10:6969`, so remote HTTPS clients received private,
+  mixed-content child playlist and segment URLs even though `/output.m3u8` itself returned
+  HTTP 200.
+- **Fix:** Manifest resources now use relative `/livestream/proxy/...` URLs, preserving the
+  caller's LAN or public HTTPS origin. The UI's VLC field now uses
+  `window.location.origin/livestream/output.m3u8` instead of a malformed `/raw` URL.
 
 ### `docker compose up` fails: `could not select device driver "nvidia"`
 - **Cause:** `docker-compose.yml` reserves an NVIDIA GPU; the VPS has none.
