@@ -13,6 +13,19 @@ meaningful change so the next device/agent has continuity. Suggested format:
 
 ---
 
+## 2026-08-20 — Refresh web UI
+- Who: Luna implementation, Sol review, with QDarkRex
+- Did: Reworked the live player, stream settings, weekly schedule, calendar, replay link, and
+  server-rendered login into a consistent dark, minimalist, responsive interface. Preserved
+  existing IDs, endpoints, parser-compatible calendar markup, and all stream/auth behavior.
+- Result: `tsc --noEmit` passed; all 34 tests passed; the production build passed; and
+  `git diff --check` passed. The main page and login were also smoke-tested in a local
+  browser at desktop and 390 px mobile widths; a mobile grid overflow found during review
+  was corrected. The `pnpm` wrapper could not run because the current lockfile is
+  incompatible with the installed pnpm and dependency cleanup had no TTY, so local project
+  binaries were used for validation.
+- Next: Deploy the updated image and confirm the production player with a real live stream.
+
 ## 2026-07-18 — Add server-side login for web and VLC
 - Who: Codex with QDarkRex
 - Did: Added a static login page backed by real server-side authentication. Browser access

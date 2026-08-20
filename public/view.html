@@ -1,145 +1,170 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="valentine">
-
+<!doctype html>
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bajag Theater</title>
-  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@100;200;300;400;500;600;700;800;900&display=swap"
-    rel="stylesheet" />
+  <meta name="description" content="Pemutar live dan pengaturan stream Bajag Theater">
+  <title>Bajag Theater — Pemutar live</title>
   <link href="/css/video-js.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/css/output.css" type="text/css">
+  <link rel="stylesheet" href="/css/style.css">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
   <link rel="manifest" href="/site.webmanifest">
 </head>
-
 <body>
-
-  <head>
-    <div class="navbar bg-primary text-primary-content">
-      <button class="btn btn-ghost text-xl">Bajag Theater</button>
-    </div>
-  </head>
-
-  <section class="mx-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-    <div class="flex flex-col">
-      <p class="text-left my-4 md:my-10 font-semibold text-md md:text-2xl">Enjoy Theater Tidak Perlu Pusing Fulus</p>
-      <video-js id=vid1 class="flex-1 vjs-default-skin video-js vjs-fluid rounded-md" controls>
-        <source src="/livestream/output.m3u8" type="application/x-mpegURL">
-      </video-js>
-      <label class="form-control mt-3">
-        <span class="label-text">Quality (Web & VLC)</span>
-        <select id="stream_quality" class="select select-bordered w-full md:max-w-xs">
-          <option value="auto">Auto (Recommended)</option>
-          <option value="1080p">1080p60</option>
-          <option value="720p">720p60</option>
-          <option value="480p">480p30</option>
-          <option value="360p">360p30</option>
-          <option value="160p">160p30</option>
-        </select>
-      </label>
-      <div class="py-2 flex flex-col md:flex-row items-center gap-2">
-        <p class="whitespace-nowrap">Lag? coba gunakan link ini di VLC:
-        <div class="join flex-1">
-          <div class="w-full">
-            <label class="input join-item w-full">
-              <input disabled id="vlc_link" type="text" value="" />
-            </label>
-          </div>
-          <button id="copy" class="btn btn-neutral join-item">Copy</button>
-        </div>
-      </div>
-      <div class="rounded-md bg-base-200 py-4 px-3 mt-3">
-        <p class="font-semibold text-md md:text-xl">Stream Control</p>
-        <div class="grid grid-cols-1 gap-3 mt-3">
-          <label class="form-control">
-            <span class="label-text">IDN Live URL</span>
-            <input id="idn_live_url" class="input input-bordered w-full" type="url"
-              placeholder="https://www.idn.app/member/live/slug" />
-          </label>
-          <label class="form-control">
-            <span class="label-text">IDN Username</span>
-            <input id="idn_username" class="input input-bordered w-full" type="text" placeholder="jkt48_levi" />
-          </label>
-          <div class="flex flex-col md:flex-row gap-2">
-            <button id="save_stream" class="btn btn-primary">Save Stream</button>
-            <button id="refresh_stream" class="btn btn-neutral">Save & Refresh</button>
-          </div>
-          <label class="form-control">
-            <span class="label-text">Cookies</span>
-            <textarea id="cookies_input" class="textarea textarea-bordered min-h-28"
-              placeholder="Paste Netscape cookies or Cookie header"></textarea>
-          </label>
-          <button id="save_cookies" class="btn btn-secondary">Save Cookies</button>
-          <p id="stream_status" class="text-sm min-h-5"></p>
-        </div>
-      </div>
-    </div>
-    </div>
-
-    <div class="flex flex-col">
-      <p class="hidden md:block md:text-right text-md md:text-2xl font-semibold md:my-10" id="date"></p>
-      <div class="rounded-md md:px-4 rounded-md bg-base-200 py-4 px-3 flex-1">
-        <p class="font-semibold text-md md:text-2xl">Jadwal</p>
-        <div class="overflow-x-auto rounded-box border border-base-content/5 bg-base-100 mt-4">
-          <table class="table">
-            <tbody>
-              <tr>
-                <td class="text-xl">Minggu</td>
-                <td id="day1" class="flex items-center gap-4">12.00</td>
-              </tr>
-              <tr>
-                <td class="text-xl">Senin</td>
-                <td id="day2" class="flex items-center gap-4">12.00</td>
-              </tr>
-              <tr>
-                <td class="text-xl">Selasa</td>
-                <td id="day3" class="flex items-center gap-4">12.00</td>
-              </tr>
-              <tr>
-                <td class="text-xl">Rabu</td>
-                <td id="day4" class="flex items-center gap-4">12.00</td>
-              </tr>
-              <tr>
-                <td class="text-xl">Kamis</td>
-                <td id="day5" class="flex items-center gap-4">12.00</td>
-              </tr>
-              <tr>
-                <td class="text-xl">Jumat</td>
-                <td id="day6" class="flex items-center gap-4">12.00</td>
-              </tr>
-              <tr>
-                <td class="text-xl">Sabtu</td>
-                <td id="day7" class="flex items-center gap-4">12.00</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="flex items-center justify-center my-2">
-        <a href="https://saweria.co/upscale48" target="_blank"
-          class="relative group flex flex-row justify-center min-w-[300px] bg-primary border border-black rounded-lg px-5">
-          <h1 class="text-white my-auto text-3xl font-[Comfortaa] px-4">Dukung kami agar server tetap hidup</h1>
-          <div
-            class="absolute bg-black rounded-lg -z-10 w-full h-full mt-2 ml-4 group-active:ml-2 group-active:mt-1 duration-100">
-          </div>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/" aria-label="Bajag Theater home">
+          <span class="brand-mark" aria-hidden="true">B</span>
+          <span class="brand-copy">Bajag Theater<small>Pendamping live JKT48</small></span>
         </a>
+        <nav class="topnav" aria-label="Main navigation">
+          <a class="nav-link" href="#settings">Pengaturan</a>
+          <a class="nav-link" href="#schedule">Jadwal</a>
+        </nav>
       </div>
+    </header>
 
-    </div>
+    <main class="page-container">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Teater live</p>
+          <h1 class="page-title" id="page-title">Nikmati pertunjukan dengan mudah.</h1>
+          <p class="hero-copy">Saksikan pertunjukan teater JKT48 terbaru dari satu dasbor yang ringkas.</p>
+        </div>
+        <p class="hero-date" id="date" aria-label="Current date"></p>
+      </section>
 
-    <div class="md:col-span-2 rounded-md md:px-4 rounded-md bg-base-200 py-4 px-3">
-      <p class="font-semibold text-md md:text-2xl">Replay</p>
-      <p>Pindah dulu yages ->
-        <small><a href="https://var.bajag-theater.my.id" target="_blank"
-            rel="noopener noreferer">https://var.bajag-theater.my.id</a>
-        </small>
-      </p>
-    </div>
+      <div class="layout-grid">
+        <div class="stack">
+          <section class="card" aria-labelledby="player-title">
+            <div class="card-header">
+              <div>
+                <h2 class="section-title" id="player-title">Pemutar live</h2>
+                <p class="section-note">Pemutaran dimulai otomatis saat stream tersedia.</p>
+              </div>
+              <span class="stream-badge">Stream</span>
+            </div>
+            <div class="card-body">
+              <div class="player-frame">
+                <video-js id="vid1" class="vjs-default-skin video-js vjs-fluid" controls aria-label="Bajag Theater live stream">
+                  <source src="/livestream/output.m3u8" type="application/x-mpegURL">
+                </video-js>
+              </div>
+              <div class="form-grid" style="margin-top: 18px">
+                <div class="field">
+                  <label class="field-label" for="stream_quality">Kualitas</label>
+                  <select id="stream_quality" class="select">
+                    <option value="auto">Otomatis (Disarankan)</option>
+                    <option value="1080p">1080p60</option>
+                    <option value="720p">720p60</option>
+                    <option value="480p">480p30</option>
+                    <option value="360p">360p30</option>
+                    <option value="160p">160p30</option>
+                  </select>
+                  <p class="help-text">Kualitas ini digunakan untuk pemutaran web dan tautan VLC.</p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="vlc_link">Tautan VLC</label>
+                  <div class="copy-row">
+                    <input class="input" disabled id="vlc_link" type="text" value="" aria-describedby="vlc-help">
+                    <button id="copy" class="btn btn-secondary" type="button">Salin</button>
+                  </div>
+                  <p class="help-text" id="vlc-help">Salin URL ini ke VLC jika pemutaran di browser tersendat.</p>
+                </div>
+              </div>
+            </div>
+          </section>
 
-  </section>
+          <section class="card" id="settings" aria-labelledby="settings-title">
+            <div class="card-header">
+              <div>
+                <h2 class="section-title" id="settings-title">Pengaturan stream</h2>
+                <p class="section-note">Perbarui sumber tanpa mengubah proses perekaman.</p>
+              </div>
+            </div>
+            <div class="card-body form-grid">
+              <div class="form-row">
+                <div class="field">
+                  <label class="field-label" for="idn_live_url">URL IDN Live</label>
+                  <input id="idn_live_url" class="input" type="url" placeholder="https://www.idn.app/member/live/slug">
+                  <p class="help-text">Gunakan URL live atau preview yang tersedia.</p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="idn_username">Username IDN</label>
+                  <input id="idn_username" class="input" type="text" placeholder="jkt48_levi" autocomplete="off">
+                  <p class="help-text">Nama akun yang digunakan untuk menemukan stream.</p>
+                </div>
+              </div>
+              <div class="button-row">
+                <button id="save_stream" class="btn btn-primary" type="button">Simpan stream</button>
+                <button id="refresh_stream" class="btn btn-secondary" type="button">Simpan &amp; perbarui</button>
+              </div>
+              <div class="field">
+                <label class="field-label" for="cookies_input">Cookies</label>
+                <textarea id="cookies_input" class="textarea" placeholder="Tempel cookies Netscape atau header Cookie" autocomplete="off"></textarea>
+                <p class="help-text">Cookies disimpan oleh server dan digunakan untuk menemukan stream IDN.</p>
+              </div>
+              <div class="button-row">
+                <button id="save_cookies" class="btn btn-secondary" type="button">Simpan cookies</button>
+              </div>
+              <p id="stream_status" class="status" role="status" aria-live="polite"></p>
+            </div>
+          </section>
+
+          <section class="card support-card" aria-labelledby="support-title">
+            <div>
+              <h2 class="section-title" id="support-title">Bantu teater tetap berjalan</h2>
+              <p>Dukunganmu membantu membiayai server Bajag Theater.</p>
+            </div>
+            <a class="btn btn-primary" href="https://saweria.co/upscale48" target="_blank" rel="noopener noreferrer">Dukung kami</a>
+          </section>
+        </div>
+
+        <aside class="stack">
+          <section class="card" id="schedule" aria-labelledby="schedule-title">
+            <div class="card-header">
+              <div>
+                <h2 class="section-title" id="schedule-title">Minggu ini</h2>
+                <p class="section-note">Jadwal pertunjukan dalam sepekan.</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <table class="schedule-table">
+                <tbody>
+                  <tr><td>Minggu</td><td id="day1">—</td></tr>
+                  <tr><td>Senin</td><td id="day2">—</td></tr>
+                  <tr><td>Selasa</td><td id="day3">—</td></tr>
+                  <tr><td>Rabu</td><td id="day4">—</td></tr>
+                  <tr><td>Kamis</td><td id="day5">—</td></tr>
+                  <tr><td>Jumat</td><td id="day6">—</td></tr>
+                  <tr><td>Sabtu</td><td id="day7">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section class="card" aria-labelledby="replay-title">
+            <div class="card-header">
+              <div>
+                <h2 class="section-title" id="replay-title">Arsip rekaman</h2>
+                <p class="section-note">Lihat pertunjukan dan rekaman sebelumnya.</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <a class="replay-link" href="https://var.bajag-theater.my.id" target="_blank" rel="noopener noreferrer">
+                <span>Buka arsip rekaman</span><span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="page-container" style="padding: 0">Bajag Theater · Rumah sederhana untuk pertunjukan.</div>
+    </footer>
+  </div>
 
   <script src="/js/video.min.js"></script>
   <script>
@@ -248,10 +273,10 @@
         const settings = await response.json();
         idnLiveUrlInput.value = settings.responseObject?.idnLiveUrl || "";
         idnUsernameInput.value = settings.responseObject?.idnUsername || "";
-        setStreamStatus(settings.responseObject?.cookiesConfigured ? "Cookies saved" : "");
+        setStreamStatus(settings.responseObject?.cookiesConfigured ? "Cookies tersimpan" : "");
       } catch (err) {
         console.log(err);
-        setStreamStatus("Failed loading stream settings");
+        setStreamStatus("Gagal memuat pengaturan stream");
       }
     }
 
@@ -280,14 +305,14 @@
 
     saveStreamBtn.addEventListener("click", async () => {
       saveStreamBtn.disabled = true;
-      setStreamStatus("Saving stream...");
+      setStreamStatus("Menyimpan stream...");
       try {
         await saveStreamSettings();
-        setStreamStatus("Stream saved. Refreshing...");
+        setStreamStatus("Stream tersimpan. Memuat ulang...");
         schedulePlayerReload();
       } catch (err) {
         console.log(err);
-        setStreamStatus("Failed saving stream");
+        setStreamStatus("Gagal menyimpan stream");
       } finally {
         saveStreamBtn.disabled = false;
       }
@@ -295,17 +320,17 @@
 
     saveCookiesBtn.addEventListener("click", async () => {
       saveCookiesBtn.disabled = true;
-      setStreamStatus("Saving cookies...");
+      setStreamStatus("Menyimpan cookies...");
       try {
         await postJson("/livestream/cookies", {
           cookies: cookiesInput.value,
         });
         cookiesInput.value = "";
-        setStreamStatus("Cookies saved. Refreshing...");
+        setStreamStatus("Cookies tersimpan. Memuat ulang...");
         schedulePlayerReload();
       } catch (err) {
         console.log(err);
-        setStreamStatus("Failed saving cookies");
+        setStreamStatus("Gagal menyimpan cookies");
       } finally {
         saveCookiesBtn.disabled = false;
       }
@@ -314,15 +339,15 @@
     refreshStreamBtn.addEventListener("click", async () => {
       refreshStreamBtn.disabled = true;
       saveStreamBtn.disabled = true;
-      setStreamStatus("Saving and refreshing stream...");
+      setStreamStatus("Menyimpan dan memperbarui stream...");
       try {
         await saveStreamSettings();
         await postJson("/livestream/refresh", {});
-        setStreamStatus("Refresh requested. Reloading player...");
+        setStreamStatus("Permintaan refresh diterima. Memuat ulang player...");
         schedulePlayerReload();
       } catch (err) {
         console.log(err);
-        setStreamStatus("Failed saving or refreshing stream");
+        setStreamStatus("Gagal menyimpan atau memperbarui stream");
       } finally {
         refreshStreamBtn.disabled = false;
         saveStreamBtn.disabled = false;
@@ -350,12 +375,12 @@
 
         for (let i = 1; i <= 7; i++) {
           const event = eventsThisWeek[i - 1];
-          document.querySelector(`#day${i}`).innerHTML = event?.event_name ? `<p class="px-3 rounded-md py-2 bg-primary text-white font-semibold">${event.event_time}<p/> ${event.event_name}` : "";
+          document.querySelector(`#day${i}`).innerHTML = event?.event_name
+            ? `<p>${event.event_time}</p>${event.event_name}` : "—";
         }
       })
     });
 
   </script>
 </body>
-
 </html>

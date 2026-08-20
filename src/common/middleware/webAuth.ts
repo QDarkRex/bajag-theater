@@ -108,25 +108,31 @@ function loginPage(next: string, failed = false): string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Login | Bajag Theater</title>
   <style>
-    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; --bg: #0b1020; --surface: #131a2c; --line: #2a3650; --text: #f4f7ff; --muted: #a8b3ca; --accent: #9d8cff; --accent-strong: #7865f5; }
     * { box-sizing: border-box; }
-    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at top, #24334d, #090d15 58%); color: #eef2ff; }
-    main { width: min(100%, 390px); padding: 34px; border: 1px solid #334155; border-radius: 18px; background: rgba(15, 23, 42, .94); box-shadow: 0 24px 70px rgba(0, 0, 0, .45); }
-    h1 { margin: 0 0 8px; font-size: 1.65rem; }
-    p { margin: 0 0 25px; color: #aebbd0; line-height: 1.5; }
-    label { display: block; margin: 16px 0 7px; font-size: .9rem; font-weight: 650; }
-    input { width: 100%; padding: 12px 13px; border: 1px solid #475569; border-radius: 9px; background: #0b1220; color: #fff; font: inherit; }
-    input:focus { outline: 2px solid #60a5fa; border-color: transparent; }
-    button { width: 100%; margin-top: 24px; padding: 12px; border: 0; border-radius: 9px; background: #2563eb; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
-    button:hover { background: #1d4ed8; }
-    .error { margin: 0 0 15px; padding: 10px 12px; border-radius: 8px; background: #451a1a; color: #fecaca; font-size: .9rem; }
-    .note { margin: 22px 0 0; font-size: .78rem; text-align: center; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: var(--bg); background-image: radial-gradient(circle at 82% -10%, rgba(120, 101, 245, .23), transparent 32rem), radial-gradient(circle at -10% 24%, rgba(67, 214, 154, .08), transparent 26rem); color: var(--text); }
+    main { width: min(100%, 420px); padding: 34px; border: 1px solid var(--line); border-radius: 20px; background: rgba(19, 26, 44, .94); box-shadow: 0 24px 70px rgba(0, 0, 0, .3); }
+    .brand { display: inline-flex; align-items: center; gap: 11px; margin-bottom: 26px; color: var(--text); font-weight: 750; letter-spacing: -.02em; }
+    .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), #c69bff); color: #17132d; font-size: 1.15rem; font-weight: 900; }
+    .brand small { display: block; margin-top: 3px; color: var(--muted); font-size: .72rem; font-weight: 500; }
+    h1 { margin: 0 0 8px; font-size: 1.8rem; letter-spacing: -.035em; }
+    .intro { margin: 0 0 24px; color: var(--muted); line-height: 1.5; }
+    label { display: block; margin: 17px 0 7px; color: var(--text); font-size: .84rem; font-weight: 700; }
+    input { width: 100%; padding: 12px 13px; border: 1px solid var(--line); border-radius: 10px; background: #10172a; color: var(--text); font: inherit; transition: border-color .18s, box-shadow .18s; }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(157, 140, 255, .14); outline: none; }
+    button { width: 100%; margin-top: 24px; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: var(--accent-strong); color: #fff; font: inherit; font-weight: 750; cursor: pointer; }
+    button:hover { background: #8a76ff; }
+    button:focus-visible { outline: 3px solid rgba(157, 140, 255, .75); outline-offset: 3px; }
+    .error { margin: 0 0 15px; padding: 11px 12px; border: 1px solid rgba(255, 132, 149, .3); border-radius: 10px; background: rgba(255, 132, 149, .1); color: #ffb7c1; font-size: .86rem; }
+    .note { margin: 22px 0 0; color: var(--muted); font-size: .76rem; text-align: center; }
+    @media (max-width: 430px) { body { padding: 14px; } main { padding: 26px 20px; } }
   </style>
 </head>
 <body>
   <main>
-    <h1>Bajag Theater</h1>
-    <p>Masuk untuk membuka player, pengaturan, dan rekaman.</p>
+    <div class="brand"><span class="brand-mark" aria-hidden="true">B</span><span>Bajag Theater<small>Pendamping live JKT48</small></span></div>
+    <h1>Selamat datang kembali</h1>
+    <p class="intro">Masuk untuk membuka player, pengaturan, dan rekaman.</p>
     ${error}
     <form method="post" action="/login">
       <input type="hidden" name="next" value="${escapeHtml(next)}">
