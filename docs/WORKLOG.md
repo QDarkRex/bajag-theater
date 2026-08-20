@@ -13,6 +13,21 @@ meaningful change so the next device/agent has continuity. Suggested format:
 
 ---
 
+## 2026-08-20 — Add BTM application hub
+- Who: Sol implementation with QDarkRex
+- Did: Added a responsive static launcher for Bajag Theater, VAR/Jellyfin, VAR Music,
+  Photobook, and BTM Cloud, plus a shortcut from the Bajag Theater navigation. The portal
+  opens each service in a separate tab because cross-domain sessions cannot be shared and
+  the Bajag Theater response cannot be embedded cross-origin. It also explains that shared
+  credentials still require a separate session per domain and that the launcher never stores
+  or sends a password.
+- Result: All five verified public services are linked explicitly. The replacement
+  `stream.bajag-theater.my.id` domain is shown as planned and unavailable because DNS/routing
+  is not active. The portal includes the operator's fiber 30 Mbps recommendation for content
+  passing through Cloudflare, without enforcing a connection restriction.
+- Next: Deploy the updated image when approved, then verify each launcher link from the
+  production domain. DNS and routing for the planned stream subdomain remain separate work.
+
 ## 2026-08-20 — Refresh web UI
 - Who: Luna implementation, Sol review, with QDarkRex
 - Did: Reworked the live player, stream settings, weekly schedule, calendar, replay link, and

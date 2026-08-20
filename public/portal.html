@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Pusat akses aplikasi dan layanan BTM">
+  <title>BTM Hub — Pusat aplikasi</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+</head>
+<body class="portal-page">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/portal.html" aria-label="BTM Hub home">
+          <span class="brand-mark" aria-hidden="true">B</span>
+          <span class="brand-copy">BTM Hub<small>Semua layanan dalam satu tempat</small></span>
+        </a>
+        <nav class="topnav" aria-label="Navigasi utama">
+          <a class="nav-link" href="/" aria-label="Kembali ke Bajag Theater">Bajag Theater</a>
+          <a class="nav-link" href="/portal.html" aria-current="page">Aplikasi</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-container">
+      <section class="portal-hero" aria-labelledby="portal-title">
+        <p class="eyebrow">Pusat aplikasi</p>
+        <h1 class="page-title" id="portal-title">Satu pintu untuk semua layanan BTM.</h1>
+        <p class="hero-copy">Pilih layanan yang ingin dibuka. Setiap aplikasi akan terbuka di tab baru agar sesi dan pemutarannya tetap berjalan dengan baik.</p>
+      </section>
+
+      <section class="service-grid" aria-label="Daftar aplikasi BTM">
+        <article class="service-card service-card--featured">
+          <div class="service-card-topline">
+            <span class="service-icon" aria-hidden="true">BT</span>
+            <span class="service-status service-status--active">Aktif</span>
+          </div>
+          <div>
+            <p class="service-kicker">Streaming</p>
+            <h2>Bajag Theater</h2>
+            <p>Tonton pertunjukan live, pilih kualitas, dan akses tautan VLC dari dasbor streaming.</p>
+          </div>
+          <a class="btn btn-primary service-action" href="https://bajag-theater.my.id/" target="_blank" rel="noopener noreferrer">
+            Buka Bajag Theater <span aria-hidden="true">↗</span>
+          </a>
+        </article>
+
+        <article class="service-card">
+          <div class="service-card-topline">
+            <span class="service-icon" aria-hidden="true">V</span>
+            <span class="service-status service-status--active">Aktif</span>
+          </div>
+          <div>
+            <p class="service-kicker">Video &amp; arsip</p>
+            <h2>VAR / Jellyfin</h2>
+            <p>Buka pustaka video, rekaman pertunjukan, dan media yang tersedia di Jellyfin.</p>
+          </div>
+          <a class="btn btn-secondary service-action" href="https://var.bajag-theater.my.id/" target="_blank" rel="noopener noreferrer">
+            Buka VAR <span aria-hidden="true">↗</span>
+          </a>
+        </article>
+
+        <article class="service-card">
+          <div class="service-card-topline">
+            <span class="service-icon" aria-hidden="true">♫</span>
+            <span class="service-status service-status--active">Aktif</span>
+          </div>
+          <div>
+            <p class="service-kicker">Musik</p>
+            <h2>VAR Music</h2>
+            <p>Langsung menuju koleksi musik di Jellyfin tanpa melewati halaman utama.</p>
+          </div>
+          <a class="btn btn-secondary service-action" href="https://var.bajag-theater.my.id/web/#/music.html" target="_blank" rel="noopener noreferrer">
+            Buka musik <span aria-hidden="true">↗</span>
+          </a>
+        </article>
+
+        <article class="service-card">
+          <div class="service-card-topline">
+            <span class="service-icon" aria-hidden="true">P</span>
+            <span class="service-status service-status--active">Aktif</span>
+          </div>
+          <div>
+            <p class="service-kicker">Galeri</p>
+            <h2>Photobook</h2>
+            <p>Lihat koleksi photobook melalui tautan berbagi publik BTM Cloud.</p>
+          </div>
+          <a class="btn btn-secondary service-action" href="https://btmcloud.my.id/public/share/R7aA5nkyNaL-E2ut92LmGA" target="_blank" rel="noopener noreferrer">
+            Buka Photobook <span aria-hidden="true">↗</span>
+          </a>
+        </article>
+
+        <article class="service-card">
+          <div class="service-card-topline">
+            <span class="service-icon" aria-hidden="true">C</span>
+            <span class="service-status service-status--active">Aktif</span>
+          </div>
+          <div>
+            <p class="service-kicker">Penyimpanan</p>
+            <h2>BTM Cloud</h2>
+            <p>Akses file dan folder yang dikelola bersama melalui penyimpanan BTM.</p>
+          </div>
+          <a class="btn btn-secondary service-action" href="https://btmcloud.my.id/" target="_blank" rel="noopener noreferrer">
+            Buka BTM Cloud <span aria-hidden="true">↗</span>
+          </a>
+        </article>
+
+        <article class="service-card service-card--unavailable" aria-labelledby="future-stream-title">
+          <div class="service-card-topline">
+            <span class="service-icon" aria-hidden="true">S</span>
+            <span class="service-status service-status--planned">Belum tersedia</span>
+          </div>
+          <div>
+            <p class="service-kicker">Rencana streaming</p>
+            <h2 id="future-stream-title">stream.bajag-theater.my.id</h2>
+            <p>Domain pengganti ini belum aktif. DNS dan routing masih perlu disiapkan sebelum layanan dapat digunakan.</p>
+          </div>
+          <span class="btn btn-secondary service-action service-action--disabled" aria-disabled="true">Menunggu aktivasi</span>
+        </article>
+      </section>
+
+      <section class="portal-notes" aria-label="Informasi akses">
+        <article class="card portal-note">
+          <span class="portal-note-icon" aria-hidden="true">i</span>
+          <div>
+            <h2 class="section-title">Tentang login</h2>
+            <p>Kredensial yang sama dapat digunakan pada setiap aplikasi, tetapi setiap domain menyimpan sesinya sendiri. BTM Hub hanya membuka tautan dan tidak menyimpan atau mengirimkan password.</p>
+          </div>
+        </article>
+        <article class="card portal-note">
+          <span class="portal-note-icon portal-note-icon--network" aria-hidden="true">⌁</span>
+          <div>
+            <h2 class="section-title">Rekomendasi koneksi</h2>
+            <p>Konten stream dan file besar melewati proxy Cloudflare. Untuk pengalaman yang stabil, gunakan internet fiber minimal 30 Mbps; koneksi GSM tidak direkomendasikan.</p>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="page-container portal-footer">
+        <span>BTM Hub · Pusat akses layanan bersama.</span>
+        <a href="/">Kembali ke Bajag Theater</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
