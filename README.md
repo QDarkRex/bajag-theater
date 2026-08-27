@@ -101,6 +101,7 @@ produced by some exporters are ignored.
 | -------- | ------------------------- | ------------------------------------------------------------- |
 | GET      | `/`                       | Web player + settings UI.                                      |
 | GET      | `/health-check`           | Liveness probe.                                                |
+| GET      | `/livestream/status`      | Read-only recording/live state for the master portal.          |
 | GET      | `/livestream/output.m3u8` | Proxied, browser-playable HLS manifest of the current stream. |
 | GET      | `/livestream/{1080p,720p,480p,360p,160p}.m3u8` | HLS manifest locked to one quality for VLC or the web player. |
 | GET      | `/livestream/proxy/*`     | Internal HLS segment/manifest proxy (see security note below).|

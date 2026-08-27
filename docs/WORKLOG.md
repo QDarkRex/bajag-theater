@@ -13,6 +13,19 @@ meaningful change so the next device/agent has continuity. Suggested format:
 
 ---
 
+## 2026-08-27 — Add read-only livestream status endpoint
+- Who: Luna implementation from Sol contract
+- Did: Added `GET /livestream/status`, derived from the configured runtime and recorder state,
+  without requesting an IVS token or exposing URLs, cookies, or credentials. Added unit coverage
+  and documented the distinction between recorder activity and source-only live detection.
+- Result: Sol review replaced the persisted `isDownloading` flag with the actual in-memory
+  recorder process state to avoid false live reports after a crash. TypeScript and production
+  build passed, all 38 tests passed, and Biome passed for every changed source/test file. The
+  pnpm wrapper remains incompatible with the installed runtime, so repository-local binaries
+  were used.
+- Next: Deploy Bajag Theater and PBTM Portal together, then verify offline and active-recording
+  states through the portal using the private Theater route.
+
 ## 2026-08-20 — Add BTM application hub
 - Who: Sol implementation with QDarkRex
 - Did: Added a responsive static launcher for Bajag Theater, VAR/Jellyfin, VAR Music,

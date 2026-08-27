@@ -17,6 +17,10 @@ export function clearActiveStreamProcess(process: ChildProcessWithoutNullStreams
   }
 }
 
+export function isActiveStreamProcess() {
+  return Boolean(activeProcess && !activeProcess.killed);
+}
+
 export function requestStreamRefresh() {
   activeGeneration++;
 

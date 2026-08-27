@@ -4,7 +4,8 @@ import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
 import { getIdnLiveStream, getIdnLiveStreamFromUrl, parseCookieFile } from "@/common/utils/idnLive";
 import { getCookieStatus, getRuntimeConfig, saveCookieFile, saveRuntimeConfig } from "@/common/utils/runtimeConfig";
-import { requestStreamRefresh } from "@/common/utils/streamState";
+import { isActiveStreamProcess, requestStreamRefresh } from "@/common/utils/streamState";
+import { type LivestreamStatus, deriveLivestreamStatus } from "@/common/utils/streamStatus";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import express, { type Response, type Router } from "express";
 import { z } from "zod";
@@ -26,6 +27,14 @@ livestreamRegistry.registerPath({
 
 async function getM3u8() {
   return (await readFile("url", "utf8").catch(() => "")).trim();
+}
+
+async function getLivestreamStatus(): Promise<LivestreamStatus> {
+  const runtimeConfig = await getRuntimeConfig();
+  return deriveLivestreamStatus(
+    Boolean(runtimeConfig.idnLiveUrl || runtimeConfig.idnUsername),
+    isActiveStreamProcess(),
+  );
 }
 
 async function readCookieHeader() {
@@ -206,6 +215,12 @@ livesreamRouter.get("/settings", async (_req, res) => {
     cookiesConfigured: cookieStatus.configured,
   });
 
+  return handleServiceResponse(serviceResponse, res);
+});
+
+livesreamRouter.get("/status", async (_req, res) => {
+  const status = await getLivestreamStatus();
+  const serviceResponse = ServiceResponse.success("Livestream status.", status);
   return handleServiceResponse(serviceResponse, res);
 });
 

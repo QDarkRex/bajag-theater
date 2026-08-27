@@ -20,6 +20,9 @@ change. Newest/most important first.
   live Gold show. The cookies available after the 2026-07-12 debugging session returned 401
   from APT even though their JWT `exp` had not passed, consistent with Cognito session
   invalidation/rotation.
+- **Status endpoint:** `/livestream/status` now reports `live` while the recorder process is
+  active and `offline` when it is not. It does not independently probe IDN/IVS, so a live
+  source before recording starts can still appear offline.
 
 ### IDN cookies rotate constantly (auth is the hard part)
 - **Symptom:** Gold streams need the account cookie, but exported cookies go stale fast; a
